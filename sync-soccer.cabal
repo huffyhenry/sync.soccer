@@ -13,6 +13,19 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:  README.md
 
+executable sync-soccer
+  hs-source-dirs:      src
+  main-is:             SyncMain.hs
+  other-modules:       Tracab, F24
+  default-language:    Haskell2010
+  build-depends:
+      base >= 4.7 && < 5
+    , datetime
+    , containers
+    , split
+    , xml
+    , bytestring
+
 executable visualise-tracab
   hs-source-dirs:      src
   main-is:             VisualiseTracab.hs
