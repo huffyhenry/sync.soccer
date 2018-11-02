@@ -9,8 +9,12 @@ assuming `truncated-data/tracab` exists.
 
 # Building
 
+I installed stack very simply with the instructions here:
+
+https://docs.haskellstack.org/en/stable/README/
+
 ```
-stack build sync-soccer
+stack build
 ```
 
 # Visualise tracab
@@ -18,6 +22,6 @@ stack build sync-soccer
 For this you will need the 'gloss' package which in turn relies on opengl.
 
 ```
-stack build sync-soccer && stack exec visualise-tracab truncated-data/tracab/803174_ManCity-Chelsea.dat
+stack build && stack exec visualise-tracab truncated-data/tracab/803174_ManCity-Chelsea.dat
 ````
 
