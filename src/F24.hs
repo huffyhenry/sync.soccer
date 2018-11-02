@@ -5,9 +5,9 @@ import qualified Data.ByteString as BS
 import Text.XML.Light.Input
 import Text.XML.Light.Types
 import Control.Exception
+import Control.Monad (liftM)
 import Data.DateTime
 import Data.Maybe
-import Control.Exception
 import Data.Typeable
 
 data F24FileError = ParserFailure
@@ -102,20 +102,27 @@ loadGameFromFile filepath = do
     xml <- BS.readFile filepath
     let result = parseXMLDoc xml
     case result of
-        Just root -> return (makeGame (head (getChildren (\q -> True) root)))
+        Just root -> return (makeGame (head $ getAllChildren root))
         Nothing -> throw ParserFailure
 
 attrLookup :: Element -> (String -> a) -> String -> Maybe a
 attrLookup el cast key =
-    let keys = map (qName . attrKey) (elAttribs el)
-        vals = map attrVal (elAttribs el)
-        val = lookup key (zip keys vals)
+    let
+        makePair attr =
+            ( qName $ attrKey attr
+            , attrVal attr
+            )
+        val = lookup key $ map makePair (elAttribs el)
     in
-    maybe Nothing (Just . cast) val
+    liftM cast val
 
 attrLookupStrict :: Element -> (String -> a) -> String -> a
 attrLookupStrict el cast key = let val = (attrLookup el cast key)
                                in maybe (throw MissingData) id val
+
+
+getAllChildren :: Element -> [ Element ]
+getAllChildren = getChildren (const True)
 
 getChildren :: (Element -> Bool) -> Element -> [Element]
 getChildren cond el = let getElems :: [Content] -> [Element]
@@ -144,8 +151,9 @@ makeEvent el = Event { eid = attrLookupStrict el read "id",
                        y = attrLookup el read "y",
                        timestamp = attrLookupStrict el read "timestamp",
                        last_modified = attrLookupStrict el read "last_modified",
-                       qs = let condQ = (\e -> qName (elName e) == "Q")
-                            in map makeQ (getChildren condQ el) }
+                       qs = let condQ = qNameEquals "Q"
+                            in map makeQ (getChildren condQ el)
+                     }
 
 makeGame :: Element -> Game
 makeGame el = Game { gid = attrLookupStrict el read "id",
@@ -161,5 +169,10 @@ makeGame el = Game { gid = attrLookupStrict el read "id",
                      period_2_start = attrLookupStrict el read "period_2_start",
                      season_id = attrLookupStrict el read "season_id",
                      season_name = attrLookupStrict el id "season_name",
-                     events = let condE = (\e -> qName (elName e) == "Event")
-                              in map makeEvent (getChildren condE el) }
+                     events = let condE = qNameEquals "Event"
+                              in map makeEvent (getChildren condE el)
+                   }
+
+qNameEquals :: String -> Element -> Bool
+qNameEquals name element =
+    (qName $ elName element) == name
