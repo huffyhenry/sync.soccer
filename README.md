@@ -25,3 +25,18 @@ For this you will need the 'gloss' package which in turn relies on opengl.
 stack build && stack exec visualise-tracab truncated-data/tracab/803174_ManCity-Chelsea.dat
 ````
 
+# Beginnings of a synchronisation program
+
+Assuming you have both appropriate datafiles after:
+
+```
+stack build
+```
+
+succeeds you can do:
+
+```
+stack exec sync-soccer f24filename tracabfilename
+```
+
+It currently just prints out how many lines/events there are. Even this, will take a while.
