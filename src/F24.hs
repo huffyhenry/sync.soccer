@@ -9,12 +9,8 @@ import Control.Monad (liftM)
 import Data.DateTime
 import Data.Maybe
 import Data.Typeable
-
-data F24FileError = ParserFailure
-                  | MissingData
-    deriving (Show, Typeable)
-
-instance Exception F24FileError
+import XmlUtils ( attrLookupStrict, attrLookup )
+import qualified XmlUtils as Xml
 
 data Game = Game {
     gid :: Int,
@@ -99,38 +95,10 @@ class F24Loader a where
 
 loadGameFromFile :: String -> IO Game
 loadGameFromFile filepath = do
+    root <- Xml.loadXmlFromFile filepath
     xml <- BS.readFile filepath
-    let result = parseXMLDoc xml
-    case result of
-        Just root -> return (makeGame (head $ getAllChildren root))
-        Nothing -> throw ParserFailure
+    return (makeGame (head $ Xml.getAllChildren root))
 
-attrLookup :: Element -> (String -> a) -> String -> Maybe a
-attrLookup el cast key =
-    let
-        makePair attr =
-            ( qName $ attrKey attr
-            , attrVal attr
-            )
-        val = lookup key $ map makePair (elAttribs el)
-    in
-    liftM cast val
-
-attrLookupStrict :: Element -> (String -> a) -> String -> a
-attrLookupStrict el cast key = let val = (attrLookup el cast key)
-                               in maybe (throw MissingData) id val
-
-
-getAllChildren :: Element -> [ Element ]
-getAllChildren = getChildren (const True)
-
-getChildren :: (Element -> Bool) -> Element -> [Element]
-getChildren cond el = let getElems :: [Content] -> [Element]
-                          getElems [] = []
-                          getElems ((Elem e):rest) = e:(getElems rest)
-                          getElems ((Text _):rest) = getElems rest
-                          getElems ((CRef _):rest) = getElems rest
-                      in filter cond (getElems (elContent el))
 
 makeQ :: Element -> Q
 makeQ el = Q { qid = attrLookupStrict el read "id",
@@ -151,8 +119,7 @@ makeEvent el = Event { eid = attrLookupStrict el read "id",
                        y = attrLookup el read "y",
                        timestamp = attrLookupStrict el read "timestamp",
                        last_modified = attrLookupStrict el read "last_modified",
-                       qs = let condQ = qNameEquals "Q"
-                            in map makeQ (getChildren condQ el)
+                       qs = map makeQ $ Xml.getChildrenWithQName "Q" el
                      }
 
 makeGame :: Element -> Game
@@ -169,10 +136,5 @@ makeGame el = Game { gid = attrLookupStrict el read "id",
                      period_2_start = attrLookupStrict el read "period_2_start",
                      season_id = attrLookupStrict el read "season_id",
                      season_name = attrLookupStrict el id "season_name",
-                     events = let condE = qNameEquals "Event"
-                              in map makeEvent (getChildren condE el)
+                     events = map makeEvent $ Xml.getChildrenWithQName "Event" el
                    }
-
-qNameEquals :: String -> Element -> Bool
-qNameEquals name element =
-    (qName $ elName element) == name
