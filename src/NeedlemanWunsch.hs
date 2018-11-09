@@ -10,6 +10,12 @@ data Pair a b = Start
 
 type Alignment a b = [Pair a b]
 
+-- We could also just use this function make 'Alignment' in the Show typeclass.
+showAlignment :: Alignment Char Char -> String
+showAlignment [] = []
+showAlignment ((GapL y):ps) = "|" ++ [y] ++ "\n" ++ showAlignment ps
+showAlignment ((GapR x):ps) = [x] ++ "|" ++ "\n" ++ showAlignment ps
+showAlignment ((Match x y):ps) = [x] ++ [y] ++ "\n" ++ showAlignment ps
 
 -- Pointer to the cell whose value contributed to the current one.
 -- In contrast to classical N-W, we have unique pointers.
@@ -29,8 +35,8 @@ val (Entry _ v) = v
 
 
 -- The Needleman-Wunsch dynamic programming algorithm
-nw :: [a] -> [b] -> (a -> b -> Double) -> Double -> Alignment a b
-nw stream1 stream2 sim gap = walkback (length s1) (length s2) [] where
+align :: [a] -> [b] -> (a -> b -> Double) -> Double -> Alignment a b
+align stream1 stream2 sim gap = walkback (length s1) (length s2) [] where
     -- Convert to 1-based arrays for easy indexing and fast random access
     s1 = listArray (1, length stream1) stream1
     s2 = listArray (1, length stream2) stream2
