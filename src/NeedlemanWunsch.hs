@@ -19,14 +19,7 @@ data Source = Origin
             | FromDiag
 
 -- Type of the N-W matrix entry: pointer to source cell and the value
-data Entry = Entry Source Double
-
-src :: Entry -> Source
-src (Entry s _) = s
-
-val :: Entry -> Double
-val (Entry _ v) = v
-
+type Entry = (Source, Double)
 
 -- The Needleman-Wunsch dynamic programming algorithm
 nw :: [a] -> [b] -> (a -> b -> Double) -> Double -> Alignment a b
@@ -36,26 +29,25 @@ nw stream1 stream2 sim gap = walkback (length s1) (length s2) [] where
     s2 = listArray (1, length stream2) stream2
 
     -- Fill in the N-W matrix
-    fill :: Int -> Int -> Entry
-    fill 0 0 = Entry Origin 0.0
-    fill 0 j = Entry FromLeft (gap*(fromIntegral j))
-    fill i 0 = Entry FromTop (gap*(fromIntegral i))
-    fill i j = maximumBy maxVal scores where
-        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gap),
-                  Entry FromTop ((val $ m!(i-1, j)) + gap),
-                  Entry FromDiag ((val $ m!(i-1, j-1)) + sim (s1!i) (s2!j))]
-        maxVal e1 e2 = if val e1 >= val e2 then GT else LT
+    fill 0 0 = (Origin, 0.0)
+    fill 0 j = (FromLeft, gap*(fromIntegral j))
+    fill i 0 = (FromTop, gap*(fromIntegral i))
+    fill i j = maximumBy maxVal candidates where
+        candidates = [(FromLeft, (snd $ m!(i, j-1)) + gap),
+                      (FromTop, (snd $ m!(i-1, j)) + gap),
+                      (FromDiag, (snd $ m!(i-1, j-1)) + sim (s1!i) (s2!j))]
+        maxVal e1 e2 = case snd e1 < snd e2 of
+            True -> LT
+            False -> if snd e1 > snd e2 then GT else EQ
 
     -- Walk through the matrix and reconstruct the best alignment
-    --walkback :: Int -> Int -> [Pair a b] -> Alignment a b
     walkback 0 0 complete = complete
     walkback i j partial = walkback i' j' (pair:partial) where
-        (i', j', pair) = case src $ m!(i, j) of
+        (i', j', pair) = case fst $ m!(i, j) of
             FromLeft -> (i, j-1, GapL $ s2!j)
             FromTop  -> (i-1, j, GapR $ s1!i)
             FromDiag -> (i-1, j-1, Match (s1!i) (s2!j))
 
     -- The N-W matrix itself
-    m :: Array (Int, Int) Entry
     m = listArray dims [fill i j | (i, j) <- range dims]
     dims = ((0, 0), (length s1, length s2))
