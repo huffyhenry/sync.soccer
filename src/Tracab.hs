@@ -38,8 +38,8 @@ type Positions = Map.IntMap Position
 -- A single complete snapshot of tracking data
 data Frame = Frame{
     frameId :: Int,
-    positions :: Positions
-    , ballPosition :: Position
+    positions :: Positions,
+    ballPosition :: Position
     }
 type Frames = [Frame]
 
@@ -86,7 +86,7 @@ parseFrame inputLine =
 
 
 -- Parse the entire Tracab data file into a list of frames
-parseDataFile :: String ->  IO Frames
+parseDataFile :: String -> IO Frames
 parseDataFile filename =
   do
     handle <- openFile filename ReadMode
@@ -94,24 +94,19 @@ parseDataFile filename =
     let frames = map parseFrame $ lines contents
     return frames
 
-main :: IO ()
-main = do
-  (filename : clArguments) <- getArgs
-  frames <- parseDataFile filename
-  putStr $ show $ length frames
-
 
 {- An example meta file:
 
 <TracabMetaData sVersion="1.0">
-    <match iId="803174" dtDate="2015-08-16 17:00:00" iFrameRateFps="25" fPitchXSizeMeters="105.00" fPitchYSizeMeters="68.00" fTrackingAreaXSizeMeters="111.00" fTrackingAreaYSizeMeters="88.00">
+    <match iId="803174" dtDate="2015-08-16 17:00:00" iFrameRateFps="25"
+        fPitchXSizeMeters="105.00" fPitchYSizeMeters="68.00"
+        fTrackingAreaXSizeMeters="111.00" fTrackingAreaYSizeMeters="88.00">
         <period iId="1" iStartFrame="1349935" iEndFrame="1424747"/>
         <period iId="2" iStartFrame="1449116" iEndFrame="1521187"/>
         <period iId="3" iStartFrame="0" iEndFrame="0"/>
         <period iId="4" iStartFrame="0" iEndFrame="0"/>
     </match>
 </TracabMetaData>
-
 
 -}
 
@@ -123,7 +118,7 @@ data Metadata = Metadata{
     pitchSizeY :: Float,
     trackingX :: Float,
     trackingY :: Float,
-    periods :: [Period]
+    periods :: Periods
 }
 
 
@@ -132,6 +127,7 @@ data Period = Period {
     startFrame :: Int,
     endFrame :: Int
 }
+type Periods = [Period]
 
 
 indentLines :: [String] -> String
