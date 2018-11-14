@@ -2,6 +2,7 @@ module Tracab where
 
 import qualified Data.IntMap as Map
 import qualified Data.List.Split as Split
+import Data.Maybe (maybe, Maybe, listToMaybe)
 import System.IO  (openFile, hGetContents, hClose, IOMode(ReadMode))
 import System.Environment (getArgs)
 import Text.XML.Light.Types ( Element )
@@ -22,7 +23,7 @@ frames = snd
 parseTracab :: String -> String -> IO Tracab
 parseTracab metafile datafile = do
     tracabMeta <- parseMetaFile metafile
-    tracabData <- parseDataFile datafile
+    tracabData <- parseDataFile tracabMeta datafile
     return (tracabMeta, tracabData)
 
 -- The position information of a single player/ball in a single snapshot
@@ -39,17 +40,19 @@ type Positions = Map.IntMap Position
 data Frame = Frame{
     frameId :: Int,
     positions :: Positions,
-    ballPosition :: Position
+    ballPosition :: Position,
+    clock :: Maybe Double
     }
 type Frames = [Frame]
 
 -- The key method parsing a line of the Tracab data file into a Frame object
-parseFrame :: String -> Frame
-parseFrame inputLine =
+parseFrame :: Metadata -> String -> Frame
+parseFrame meta inputLine =
   Frame
     { frameId = frameId
     , positions = positions
     , ballPosition = parseBallPosition ballString
+    , clock = clock
     }
   where
   -- Split input data into chunks
@@ -60,6 +63,15 @@ parseFrame inputLine =
   frameId = read dataLineIdStr
   positions = foldl addPosition Map.empty (map parsePosition positionsStrings)
   addPosition mapg posn = Map.insert (participantId posn) posn mapg
+
+  -- Compute the implied timestamp of the frame in seconds from period start
+  inPeriodClock p = let offset = frameId - (startFrame p)
+                        fps = frameRateFps meta
+                    in (fromIntegral offset) / (fromIntegral fps)
+  candidatePeriods = [p | p <- periods meta,
+                          startFrame p <= frameId,
+                          endFrame p >= frameId]
+  clock = maybe Nothing (Just . inPeriodClock) (listToMaybe candidatePeriods)
 
   -- Parse individual chunks
   splitOn c = Split.wordsBy (==c)
@@ -86,12 +98,12 @@ parseFrame inputLine =
 
 
 -- Parse the entire Tracab data file into a list of frames
-parseDataFile :: String -> IO Frames
-parseDataFile filename =
+parseDataFile :: Metadata -> String -> IO Frames
+parseDataFile meta filename =
   do
     handle <- openFile filename ReadMode
     contents <- hGetContents handle
-    let frames = map parseFrame $ lines contents
+    let frames = map (parseFrame meta) $ lines contents
     return frames
 
 
