@@ -1,54 +1,68 @@
 module Tracab where
 
 import qualified Data.IntMap as Map
+import qualified Data.List.Split as Split
 import System.IO  (openFile, hGetContents, hClose, IOMode(ReadMode))
 import System.Environment (getArgs)
-import qualified Data.List.Split as Split
-import qualified Data.Maybe as Maybe
 import Text.XML.Light.Types ( Element )
 import qualified XmlUtils
 import XmlUtils ( attrLookupStrict, attrLookup )
 import qualified XmlUtils as Xml
 
 
-data Position = Position
-    { participantId :: Int
-    , x :: Int
-    , y :: Int
-    , teamId :: Int
-    , speed :: Float
-    }
+-- Complete Tracab data
+type Tracab = (Metadata, Frames)
 
-type ShirtNumber = Int
+metadata :: Tracab -> Metadata
+metadata = fst
+
+frames :: Tracab -> Frames
+frames = snd
+
+parseTracab :: String -> String -> IO Tracab
+parseTracab metafile datafile = do
+    tracabMeta <- parseMetaFile metafile
+    tracabData <- parseDataFile datafile
+    return (tracabMeta, tracabData)
+
+-- The position information of a single player/ball in a single snapshot
+data Position = Position{
+    participantId :: Int,
+    x :: Int,
+    y :: Int,
+    teamId :: Int,
+    speed :: Float
+}
 type Positions = Map.IntMap Position
-type DataLineId = Int
-data DataLine = DataLine
-    { dataLineId :: DataLineId
-    , positions :: Positions
+
+-- A single complete snapshot of tracking data
+data Frame = Frame{
+    frameId :: Int,
+    positions :: Positions
     , ballPosition :: Position
     }
+type Frames = [Frame]
 
-
-parseLine :: String -> DataLine
-parseLine inputLine =
-  DataLine
-    { dataLineId = dataLineId
+-- The key method parsing a line of the Tracab data file into a Frame object
+parseFrame :: String -> Frame
+parseFrame inputLine =
+  Frame
+    { frameId = frameId
     , positions = positions
     , ballPosition = parseBallPosition ballString
     }
   where
-  dataLineId =
-      read dataLineIdStr
+  -- Split input data into chunks
+  [dataLineIdStr, positionsString, ballString, _] = splitOn ':' inputLine
+  positionsStrings = splitOn ';' positionsString
 
-  positions =
-    foldl addPosition Map.empty positionsList
+  -- Assemble parsed data
+  frameId = read dataLineIdStr
+  positions = foldl addPosition Map.empty (map parsePosition positionsStrings)
+  addPosition mapg posn = Map.insert (participantId posn) posn mapg
 
-  addPosition mapping position =
-    Map.insert (participantId position) position mapping
-
-  positionsStrings = Split.wordsBy (==';') positionsString
-  positionsList =
-      map parsePosition positionsStrings
+  -- Parse individual chunks
+  splitOn c = Split.wordsBy (==c)
   parsePosition inputStr =
       Position
         { participantId = read idStr
@@ -58,7 +72,7 @@ parseLine inputLine =
         , speed = read speedStr
         }
       where
-      [teamStr,idStr,jerseyNumberStr,xStr,yStr,speedStr] = commaSplit inputStr
+      [teamStr,idStr,jerseyNumberStr,xStr,yStr,speedStr] = splitOn ',' inputStr
   parseBallPosition inputStr =
       Position
         { participantId = 0
@@ -67,42 +81,24 @@ parseLine inputLine =
         , teamId = read teamStr
         , speed = read speedStr
         }
-        where
-        [xStr, yStr, speedStr, teamStr, statusStr, _] = commaSplit inputStr
-  [dataLineIdStr, positionsString, ballString, _] = colonSplit inputLine
+      where
+      [xStr, yStr, speedStr, teamStr, statusStr, _] = splitOn ',' inputStr
 
-commaSplit :: String -> [String]
-commaSplit = splitOn ','
 
-colonSplit :: String -> [String]
-colonSplit = splitOn ':'
-
-splitOn :: Char -> String -> [ String ]
-splitOn c = Split.wordsBy (== c)
-
-parseFile :: String ->  IO [ DataLine ]
-parseFile filename =
+-- Parse the entire Tracab data file into a list of frames
+parseDataFile :: String ->  IO Frames
+parseDataFile filename =
   do
     handle <- openFile filename ReadMode
     contents <- hGetContents handle
-    let dataLines = map parseLine $ lines contents
-    -- hClose handle
-    return dataLines
-
-
-maxSpeed :: [ DataLine ] -> Float
-maxSpeed dataLines =
-  maximum $ map getMaxSpeed dataLines
-  where
-  getMaxSpeed line =
-    maximum $ map speed $ Map.elems (positions line)
+    let frames = map parseFrame $ lines contents
+    return frames
 
 main :: IO ()
 main = do
   (filename : clArguments) <- getArgs
-  dataLines <- parseFile filename
-  putStr $ show $ maxSpeed dataLines
-
+  frames <- parseDataFile filename
+  putStr $ show $ length frames
 
 
 {- An example meta file:
@@ -119,25 +115,26 @@ main = do
 
 -}
 
-data Match = Match {
-    matchId :: String
-  , frameRateFps :: Int
-  , pitchSizeX :: Float
-  , pitchSizeY :: Float
-  , trackingX :: Float
-  , trackingY :: Float
-  , periods :: [ Period ]
+-- The type of Tracab metadata
+data Metadata = Metadata{
+    matchId :: String,
+    frameRateFps :: Int,
+    pitchSizeX :: Float,
+    pitchSizeY :: Float,
+    trackingX :: Float,
+    trackingY :: Float,
+    periods :: [Period]
 }
 
 
 data Period = Period {
-    periodId :: Int
-  , startFrame :: Int
-  , endFrame :: Int
-  }
+    periodId :: Int,
+    startFrame :: Int,
+    endFrame :: Int
+}
 
 
-indentLines :: [ String ] -> String
+indentLines :: [String] -> String
 indentLines inputLines =
   unlines $ map ("    " ++) inputLines
 
@@ -145,7 +142,7 @@ indent :: String -> String
 indent input =
   indentLines $ lines input
 
-instance Show Match where
+instance Show Metadata where
   show match =
       unlines
         [ "matchId: " ++ (matchId match)
@@ -164,14 +161,14 @@ instance Show Period where
           , show $ endFrame period
           ]
 
-parseMetaFile :: String -> IO Match
+parseMetaFile :: String -> IO Metadata
 parseMetaFile filename = do
     root <- Xml.loadXmlFromFile filename
-    return $ makeMatch (head $ Xml.getAllChildren root)
+    return $ makeMetadata (head $ Xml.getAllChildren root)
 
-makeMatch :: Element -> Match
-makeMatch element =
-    Match
+makeMetadata :: Element -> Metadata
+makeMetadata element =
+    Metadata
       { matchId = attrLookupStrict element id "iId"
       , frameRateFps = attrLookupStrict element read "iFrameRateFps"
       , pitchSizeX = attrLookupStrict element read "fPitchXSizeMeters"
@@ -183,8 +180,8 @@ makeMatch element =
 
 makePeriod :: Element -> Period
 makePeriod element =
-    Period
-      { periodId = attrLookupStrict element read "iId"
-      , startFrame = attrLookupStrict element read "iStartFrame"
-      , endFrame = attrLookupStrict element read "iEndFrame"
-      }
+    Period{
+        periodId = attrLookupStrict element read "iId",
+        startFrame = attrLookupStrict element read "iStartFrame",
+        endFrame = attrLookupStrict element read "iEndFrame"
+    }

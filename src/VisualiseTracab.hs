@@ -8,10 +8,10 @@ main :: IO ()
 main
  =  do
     (filename : clArguments) <- getArgs
-    dataLines <- Tracab.parseFile filename
-    animate (InWindow "Tracab" (800, 600) (5,5)) (greyN 0.2) (frame dataLines)
+    frames <- Tracab.parseDataFile filename
+    animate (InWindow "Tracab" (800, 600) (5,5)) (greyN 0.2) (frame frames)
 
-frame :: [ Tracab.DataLine ] -> Float -> Picture
+frame :: Tracab.Frames -> Float -> Picture
 frame dataLines time =
     case currentTime >= length dataLines of
         True -> endGame
