@@ -7,8 +7,9 @@ import System.Environment (getArgs)
 main :: IO ()
 main
  =  do
-    (filename : clArguments) <- getArgs
-    frames <- Tracab.parseDataFile filename
+    (metafile : datafile : clArguments) <- getArgs
+    meta <- Tracab.parseMetaFile metafile
+    frames <- Tracab.parseDataFile meta datafile
     animate (InWindow "Tracab" (800, 600) (5,5)) (greyN 0.2) (frame frames)
 
 frame :: Tracab.Frames -> Float -> Picture
