@@ -56,3 +56,17 @@ executable visualise-tracab
     , xml
     , bytestring
     , datetime
+
+executable visualise-opta
+  hs-source-dirs:      src
+  main-is:             VisualiseOpta.hs
+  other-modules:       Tracab, XmlUtils, F24
+  default-language:    Haskell2010
+  build-depends:
+      base >= 4.7 && < 5
+    , containers
+    , split
+    , gloss
+    , xml
+    , bytestring
+    , datetime
