@@ -56,9 +56,9 @@ drawEvent game event =
     Gloss.Pictures pictures
     where
     pictures = [ eventId, typeId, periodId, eventPlace ]
-    eventId = Gloss.Translate (-40) 50 $ intLabel "eventId" $ F24.event_id event
-    typeId = Gloss.Translate    40  50 $ intLabel "typeId" $ F24.type_id event
-    periodId = Gloss.Translate   0  50 $ intLabel "periodId" $ F24.period_id event
+    eventId = Gloss.Translate  (-80) 50 $ intLabel "eventId" $ F24.event_id event
+    periodId = Gloss.Translate (-20) 50 $ intLabel "periodId" $ F24.period_id event
+    typeId = Gloss.Translate     40  50 $ intLabel "typeId" $ F24.type_id event
     eventPlace =
         case F24.coordinates event of
             Nothing ->
