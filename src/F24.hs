@@ -158,15 +158,27 @@ convertCoordinates metaData game =
     where
     convertEvent event =
         event { coordinates = liftM convertCoordinates $ coordinates event }
+        where
+        convertCoordinates coords =
+            Tracab.Coordinates
+                -- TODO: Obviously wrong.
+                { Tracab.x = perhapsFlipX $ convertX $ xPercentage coords
+                , Tracab.y = convertY $ yPercentage coords
+                }
 
-    convertCoordinates coords =
-        Tracab.Coordinates
-            -- TODO: Obviously wrong.
-            { Tracab.x = convertX $ xPercentage coords
-            , Tracab.y = convertY $ yPercentage coords
-            }
+        -- We assume that the home team is playing from left to right, it doesn't actually
+        -- matter as long as we consistently flip the pitch for *one* team or the other
+        -- however, we do need to do this properly when we actually combine the event with
+        -- the tracab locations.
+        perhapsFlipX x =
+            case (team_id event) == (away_team_id game) of
+                True ->
+                    0 - x
+                False ->
+                    x
 
-    convertX = convertUnit $ Tracab.pitchSizeX metaData
-    convertY = convertUnit $ Tracab.pitchSizeY metaData
-    convertUnit pitchUnit percentage =
-        round $ (percentage * pitchUnit / 100.0) - (pitchUnit / 2.0)
+
+        convertX = convertUnit $ Tracab.pitchSizeX metaData
+        convertY = convertUnit $ Tracab.pitchSizeY metaData
+        convertUnit pitchUnit percentage =
+            round $ (percentage * pitchUnit / 100.0) - (pitchUnit / 2.0)
