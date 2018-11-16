@@ -26,11 +26,15 @@ parseTracab metafile datafile = do
     tracabData <- parseDataFile tracabMeta datafile
     return (tracabMeta, tracabData)
 
+data Coordinates = Coordinates {
+  x :: Int,
+  y :: Int
+}
+
 -- The position information of a single player/ball in a single snapshot
 data Position = Position{
     participantId :: Int,
-    x :: Int,
-    y :: Int,
+    coordinates :: Coordinates,
     teamId :: Int,
     speed :: Float
 }
@@ -78,8 +82,7 @@ parseFrame meta inputLine =
   parsePosition inputStr =
       Position
         { participantId = read idStr
-        , x = read xStr
-        , y = read yStr
+        , coordinates = Coordinates { x = read xStr, y = read yStr }
         , teamId = read teamStr
         , speed = read speedStr
         }
@@ -88,8 +91,7 @@ parseFrame meta inputLine =
   parseBallPosition inputStr =
       Position
         { participantId = 0
-        , x = read xStr
-        , y = read yStr
+        , coordinates = Coordinates { x = read xStr, y = read yStr }
         , teamId = read teamStr
         , speed = read speedStr
         }

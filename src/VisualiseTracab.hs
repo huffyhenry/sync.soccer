@@ -37,11 +37,16 @@ endGame
 renderPosition :: Float -> Color -> Tracab.Position -> Picture
 renderPosition thickness teamColor position =
     Color teamColor
-    $ Translate (getPoint $ Tracab.x position) (getPoint $ Tracab.y position)
+    $ translateCoordinates (Tracab.coordinates position)
     $ ThickCircle radius thickness
     where
-        getPoint x = (fromIntegral x) / 20
         radius = 5
+
+translateCoordinates :: Tracab.Coordinates -> (Picture -> Picture)
+translateCoordinates coordinates =
+    Translate (getPoint $ Tracab.x coordinates) (getPoint $ Tracab.y coordinates)
+    where
+    getPoint x = (fromIntegral x) / 20
 
 
 renderPlayer :: Tracab.Position -> Picture

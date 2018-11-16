@@ -1,5 +1,6 @@
 module F24 where
 
+import qualified Tracab
 import Prelude hiding (min)
 import qualified Data.ByteString as BS
 import Text.XML.Light.Input
@@ -12,7 +13,7 @@ import Data.Typeable
 import XmlUtils ( attrLookupStrict, attrLookup )
 import qualified XmlUtils as Xml
 
-data Game = Game {
+data Game coordinates = Game {
     gid :: Int,
     away_team_id :: Int,
     away_team_name :: String,
@@ -26,17 +27,17 @@ data Game = Game {
     period_2_start :: DateTime,
     season_id :: Int,
     season_name :: String,
-    events :: [Event]
+    events :: [Event coordinates]
 }
 
-instance Eq Game where
+instance Eq (Game a) where
     g1 == g2 = gid g1 == gid g2
 
-instance Show Game where
+instance Show (Game a) where
     show g = show (gid g) ++ " " ++ home_team_name g ++ " vs " ++ away_team_name g ++ " on " ++ show (game_date g)
 
 
-data Event = Event {
+data Event coordinates = Event {
     eid :: Int,
     event_id :: Int,
     type_id :: Int,
@@ -46,32 +47,34 @@ data Event = Event {
     player_id :: Maybe Int,
     team_id :: Int,
     outcome :: Maybe Int,
-    x :: Maybe Float,
-    y :: Maybe Float,
+    coordinates :: Maybe coordinates,
     timestamp :: DateTime, -- FIXME Should be more granular timestamp type.
     last_modified :: DateTime,
     qs :: [Q]
 }
 
-instance Eq Event where
+instance Eq (Event a) where
     e1 == e2 = eid e1 == eid e2
 
-instance Show Event where
+instance Show (Event a) where
     show e = let t = show (type_id e)
                  i = show (eid e)
                  p = maybe "" (\pid -> "by player " ++ show pid) (player_id e)
                  c = show (team_id e)
              in "E[" ++ i ++ "]" ++ " of type " ++ t ++ " for " ++ c ++ p
 
-hasq :: Int -> Event -> Bool
-hasq i e = any (\q -> qualifier_id q == i) (qs e)
+hasq :: Int -> Event a -> Bool
+hasq i e = any (hasQid i) (qs e)
 
 -- FIXME: Consider throwing an exception on duplicated qualifiers
-qval :: Int -> Event -> Maybe String
-qval i e = let qq = filter (\q -> qualifier_id q == i) (qs e)
+qval :: Int -> Event a -> Maybe String
+qval i e = let qq = filter (hasQid i) (qs e)
            in case qq of
                   [] -> Nothing
                   q:_ -> value q
+
+hasQid :: Int -> Q -> Bool
+hasQid i q = qualifier_id q == i
 
 data Q = Q {
     qid :: Int,
@@ -88,12 +91,15 @@ instance Show Q where
 
 -- F24 data may be loaded from different resources
 class F24Loader a where
-    loadGame :: a -> IO Game
+    loadGame :: a -> IO (Game F24Coordinates)
 
 
+data F24Coordinates = F24Coordinates {
+    xPercentage :: Float,
+    yPercentage :: Float
+}
 
-
-loadGameFromFile :: String -> IO Game
+loadGameFromFile :: String -> IO (Game F24Coordinates)
 loadGameFromFile filepath = do
     root <- Xml.loadXmlFromFile filepath
     xml <- BS.readFile filepath
@@ -105,24 +111,30 @@ makeQ el = Q { qid = attrLookupStrict el read "id",
                qualifier_id = attrLookupStrict el read "qualifier_id",
                value = attrLookup el read "value" }
 
-makeEvent :: Element -> Event
-makeEvent el = Event { eid = attrLookupStrict el read "id",
-                       event_id = attrLookupStrict el read "event_id",
-                       type_id = attrLookupStrict el read "type_id",
-                       period_id = attrLookupStrict el read "period_id",
-                       min = attrLookupStrict el read "min",
-                       sec = attrLookupStrict el read "sec",
-                       player_id = attrLookup el read "player_id",
-                       team_id = attrLookupStrict el read "team_id",
-                       outcome = attrLookup el read "outcome",
-                       x = attrLookup el read "x",
-                       y = attrLookup el read "y",
-                       timestamp = attrLookupStrict el read "timestamp",
-                       last_modified = attrLookupStrict el read "last_modified",
-                       qs = map makeQ $ Xml.getChildrenWithQName "Q" el
-                     }
+makeEvent :: Element -> Event F24Coordinates
+makeEvent el =
+    Event
+        { eid = attrLookupStrict el read "id",
+            event_id = attrLookupStrict el read "event_id",
+            type_id = attrLookupStrict el read "type_id",
+            period_id = attrLookupStrict el read "period_id",
+            min = attrLookupStrict el read "min",
+            sec = attrLookupStrict el read "sec",
+            player_id = attrLookup el read "player_id",
+            team_id = attrLookupStrict el read "team_id",
+            outcome = attrLookup el read "outcome",
+            coordinates = coordinates,
+            timestamp = attrLookupStrict el read "timestamp",
+            last_modified = attrLookupStrict el read "last_modified",
+            qs = map makeQ $ Xml.getChildrenWithQName "Q" el
+            }
+    where
+    coordinates =
+        do x <- attrLookup el read "x"
+           y <- attrLookup el read "y"
+           return $ F24Coordinates { xPercentage = x, yPercentage = y }
 
-makeGame :: Element -> Game
+makeGame :: Element -> Game F24Coordinates
 makeGame el = Game { gid = attrLookupStrict el read "id",
                      away_team_id = attrLookupStrict el read "away_team_id",
                      away_team_name = attrLookupStrict el id "away_team_name",
@@ -138,3 +150,18 @@ makeGame el = Game { gid = attrLookupStrict el read "id",
                      season_name = attrLookupStrict el id "season_name",
                      events = map makeEvent $ Xml.getChildrenWithQName "Event" el
                    }
+
+
+convertCoordinates :: Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
+convertCoordinates metaData game =
+    game { events = map convertEvent (events game) }
+    where
+    convertEvent event =
+        event { coordinates = liftM convertCoordinates $ coordinates event }
+
+    convertCoordinates coords =
+        Tracab.Coordinates
+            -- TODO: Obviously wrong.
+            { Tracab.x = round $ xPercentage coords
+            , Tracab.y = round $ yPercentage coords
+            }
