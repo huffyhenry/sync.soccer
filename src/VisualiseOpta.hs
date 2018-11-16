@@ -5,6 +5,8 @@ import qualified F24
 import qualified Data.IntMap as Map
 import System.IO  (openFile, hGetContents, hClose, IOMode(ReadMode))
 import System.Environment (getArgs)
+import qualified Visualise
+import qualified Colors
 
 main :: IO ()
 main
@@ -24,7 +26,7 @@ animate game =
     initialModel = F24.events game
     fps = 1
     display = Gloss.InWindow "Tracab" (800, 600) (5,5)
-    color = Gloss.greyN 0.2
+    color = Colors.pitch
 
 type Model = [ F24.Event Tracab.Coordinates ]
 
@@ -45,6 +47,17 @@ drawEvent game event =
     eventId = Gloss.Translate (-200) 250 $ intLabel "eventId" $ F24.event_id event
     typeId = Gloss.Translate    200  250 $ intLabel "typeId" $ F24.type_id event
     periodId = Gloss.Translate    0  250 $ intLabel "periodId" $ F24.period_id event
+    eventPlace =
+        case F24.coordinates event of
+            Nothing ->
+                Gloss.Blank
+            Just coordinates ->
+                Gloss.Color (Gloss.makeColor 0.1 0.1 0.9 1.0)
+                $ Visualise.translateCoordinates coordinates
+                $ Gloss.ThickCircle radius thickness
+    radius = 5
+    thickness = 3
+
     intLabel :: String -> Int -> Gloss.Picture
     intLabel title value =
         Gloss.Scale 0.2 0.2 $ Gloss.Text (title ++ ": " ++ (show value))

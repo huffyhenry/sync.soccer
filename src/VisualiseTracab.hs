@@ -3,6 +3,7 @@ import qualified Tracab
 import qualified Data.IntMap as Map
 import System.IO  (openFile, hGetContents, hClose, IOMode(ReadMode))
 import System.Environment (getArgs)
+import qualified Visualise
 
 main :: IO ()
 main
@@ -37,17 +38,10 @@ endGame
 renderPosition :: Float -> Color -> Tracab.Position -> Picture
 renderPosition thickness teamColor position =
     Color teamColor
-    $ translateCoordinates (Tracab.coordinates position)
+    $ Visualise.translateCoordinates (Tracab.coordinates position)
     $ ThickCircle radius thickness
     where
         radius = 5
-
-translateCoordinates :: Tracab.Coordinates -> (Picture -> Picture)
-translateCoordinates coordinates =
-    Translate (getPoint $ Tracab.x coordinates) (getPoint $ Tracab.y coordinates)
-    where
-    getPoint x = (fromIntegral x) / 20
-
 
 renderPlayer :: Tracab.Position -> Picture
 renderPlayer position =
