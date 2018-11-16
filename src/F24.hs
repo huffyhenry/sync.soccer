@@ -188,3 +188,9 @@ convertCoordinates metaData game =
         convertY = convertUnit $ Tracab.pitchSizeY metaData
         convertUnit pitchUnit percentage =
             perhapsFlipFactor * (round $ (percentage * pitchUnit / 100.0) - (pitchUnit / 2.0))
+
+eventTypeName :: Event a -> String
+eventTypeName event =
+    case type_id event of
+        1 -> "Pass"
+        unknown -> "Unknown: " ++ show unknown

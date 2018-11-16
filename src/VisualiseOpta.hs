@@ -73,10 +73,10 @@ drawEvent :: F24.Game Tracab.Coordinates -> F24.Event Tracab.Coordinates -> Glos
 drawEvent game event =
     Gloss.Pictures pictures
     where
-    pictures = [ eventId, typeId, periodId, teamLabel, eventPlace ]
+    pictures = [ eventId, typeName, periodId, teamLabel, eventPlace ]
     eventId = Gloss.Translate  (-80) 50 $ intLabel "eventId" $ F24.event_id event
     periodId = Gloss.Translate (-20) 50 $ intLabel "periodId" $ F24.period_id event
-    typeId = Gloss.Translate     40  50 $ intLabel "typeId" $ F24.type_id event
+    typeName = Gloss.Translate   30  50 $ Gloss.Color Colors.writing $ text (F24.eventTypeName event)
     teamLabel =
         case F24.isHomeTeam game event of
             True ->
@@ -89,7 +89,7 @@ drawEvent game event =
                         makeTeamLabel 0 Colors.neutralTeam "no team"
 
     makeTeamLabel x color name =
-        Gloss.Translate x 40 $ Gloss.Color color $ Gloss.Scale 0.05 0.05 $ Gloss.Text name
+        Gloss.Translate x 40 $ Gloss.Color color $ text name
 
 
     eventPlace =
@@ -103,11 +103,12 @@ drawEvent game event =
     radius = 0.5
     thickness = 0.3
 
+    text s = Gloss.Scale 0.05 0.05 $ Gloss.Text s
+
     intLabel :: String -> Int -> Gloss.Picture
     intLabel title value =
         Gloss.Color Colors.writing
-        $ Gloss.Scale 0.05 0.05
-        $ Gloss.Text (title ++ ": " ++ (show value))
+        $ text (title ++ ": " ++ (show value))
 
 
 endGame :: Gloss.Picture
