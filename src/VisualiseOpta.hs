@@ -30,16 +30,34 @@ animate meta game =
     display = Gloss.InWindow "Opta in Tracab Coordinates" (800, 600) (10, 10)
     color = Colors.background
     pitchDrawing =
-        Gloss.Color Colors.pitch
+        Gloss.Pictures
+            [ grassRectangle
+            , pitchLine $ Gloss.circle 0.1
+            , pitchLine $ Gloss.circle 10
+            , pitchLine $ Gloss.line [ (0, top), (0, bottom) ]
+            , pitchLine $ Gloss.line [ topLeft, topRight, bottomRight, bottomLeft, topLeft ]
+            ]
+
+    pitchLine = Gloss.Color Gloss.white
+
+    grassRectangle =
+        -- Just make the grass rectangle a bit bigger than the pitch.
+        Gloss.Scale 1.1 1.1
+        $ Gloss.Color Colors.pitch
         $ Gloss.Polygon [ topLeft, topRight, bottomRight, bottomLeft]
+
+    topLeft = (left, top)
+    topRight = (right, top)
+    bottomRight = (right, bottom)
+    bottomLeft = (left, bottom)
+
+    top = halfPitchWidth
+    bottom = 0 - halfPitchWidth
+    left = 0 - halfPitchLength
+    right = halfPitchLength
 
     halfPitchLength = (Tracab.pitchSizeX meta) / 2.0
     halfPitchWidth = (Tracab.pitchSizeY meta) / 2.0
-    topLeft = (0 - halfPitchLength, halfPitchWidth)
-    topRight = (halfPitchLength, halfPitchWidth)
-    bottomRight = (halfPitchLength, 0 - halfPitchWidth)
-    bottomLeft = (0 - halfPitchLength, 0 - halfPitchWidth)
-
 
 type Model = [ F24.Event Tracab.Coordinates ]
 
