@@ -25,7 +25,7 @@ animate game =
     advance = advanceModel game
     initialModel = F24.events game
     fps = 1
-    display = Gloss.InWindow "Tracab" (800, 600) (5,5)
+    display = Gloss.InWindow "Opta in Tracab Coordinates" (800, 600) (10, 10)
     color = Colors.pitch
 
 type Model = [ F24.Event Tracab.Coordinates ]
@@ -43,15 +43,16 @@ drawEvent :: F24.Game Tracab.Coordinates -> F24.Event Tracab.Coordinates -> Glos
 drawEvent game event =
     Gloss.Pictures pictures
     where
-    pictures = [ eventId, typeId, periodId ]
+    pictures = [ eventId, typeId, periodId, eventPlace ]
     eventId = Gloss.Translate (-200) 250 $ intLabel "eventId" $ F24.event_id event
     typeId = Gloss.Translate    200  250 $ intLabel "typeId" $ F24.type_id event
     periodId = Gloss.Translate    0  250 $ intLabel "periodId" $ F24.period_id event
     eventPlace =
         case F24.coordinates event of
             Nothing ->
-                Gloss.Blank
+                Gloss.Text "The event has no coordinates."
             Just coordinates ->
+                -- Gloss.Text ("Coordinates: " ++ (show $ Tracab.x coordinates) ++ (show $ Tracab.y coordinates) )
                 Gloss.Color (Gloss.makeColor 0.1 0.1 0.9 1.0)
                 $ Visualise.translateCoordinates coordinates
                 $ Gloss.ThickCircle radius thickness
