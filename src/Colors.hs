@@ -11,3 +11,9 @@ makeColor r g b o =
 
 pitch :: Gloss.Color
 pitch = makeColor 9 78 17 1.0
+
+background :: Gloss.Color
+background = makeColor 7 36 10 1.0
+
+writing :: Gloss.Color
+writing = makeColor 222 238 223 1.0

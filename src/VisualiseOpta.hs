@@ -15,21 +15,28 @@ main
     meta <- Tracab.parseMetaFile metafile
     f24game <- F24.loadGameFromFile datafile
     let game = F24.convertCoordinates meta f24game
-    animate game
+    animate meta game
 
-animate :: F24.Game Tracab.Coordinates -> IO ()
-animate game =
+animate :: Tracab.Metadata -> F24.Game Tracab.Coordinates -> IO ()
+animate meta game =
     Gloss.simulate display color fps initialModel draw advance
     where
-    draw = drawFrame game
+    draw frame = Gloss.pictures [ pitchDrawing, drawFrame game frame ]
     advance = advanceModel game
     initialModel = F24.events game
     fps = 1
     display = Gloss.InWindow "Opta in Tracab Coordinates" (800, 600) (10, 10)
-    color = Colors.pitch
+    color = Colors.background
+    pitchDrawing =
+        Gloss.Color Colors.pitch
+        $ Gloss.Polygon [ topLeft, topRight, bottomRight, bottomLeft]
+    topLeft = (-100, -100)
+    topRight = (100, -100)
+    bottomRight = (100, 100)
+    bottomLeft = (-100, 100)
+
 
 type Model = [ F24.Event Tracab.Coordinates ]
-
 
 advanceModel :: F24.Game Tracab.Coordinates -> Simulate.ViewPort -> Float -> Model -> Model
 advanceModel _game _viewport _time [] = []
@@ -50,9 +57,8 @@ drawEvent game event =
     eventPlace =
         case F24.coordinates event of
             Nothing ->
-                Gloss.Text "The event has no coordinates."
+                Gloss.Blank
             Just coordinates ->
-                -- Gloss.Text ("Coordinates: " ++ (show $ Tracab.x coordinates) ++ (show $ Tracab.y coordinates) )
                 Gloss.Color (Gloss.makeColor 0.1 0.1 0.9 1.0)
                 $ Visualise.translateCoordinates coordinates
                 $ Gloss.ThickCircle radius thickness
@@ -61,7 +67,9 @@ drawEvent game event =
 
     intLabel :: String -> Int -> Gloss.Picture
     intLabel title value =
-        Gloss.Scale 0.2 0.2 $ Gloss.Text (title ++ ": " ++ (show value))
+        Gloss.Color Colors.writing
+        $ Gloss.Scale 0.2 0.2
+        $ Gloss.Text (title ++ ": " ++ (show value))
 
 
 endGame :: Gloss.Picture
