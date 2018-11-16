@@ -162,6 +162,11 @@ convertCoordinates metaData game =
     convertCoordinates coords =
         Tracab.Coordinates
             -- TODO: Obviously wrong.
-            { Tracab.x = round $ xPercentage coords
-            , Tracab.y = round $ yPercentage coords
+            { Tracab.x = convertX $ xPercentage coords
+            , Tracab.y = convertY $ yPercentage coords
             }
+
+    convertX = convertUnit $ Tracab.pitchSizeX metaData
+    convertY = convertUnit $ Tracab.pitchSizeY metaData
+    convertUnit pitchUnit percentage =
+        round $ (percentage * pitchUnit / 100.0) - (pitchUnit / 2.0)

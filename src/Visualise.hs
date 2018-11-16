@@ -7,4 +7,4 @@ translateCoordinates :: Tracab.Coordinates -> (Gloss.Picture -> Gloss.Picture)
 translateCoordinates coordinates =
     Gloss.Translate (getPoint $ Tracab.x coordinates) (getPoint $ Tracab.y coordinates)
     where
-    getPoint x = (fromIntegral x) / 20
+    getPoint x = fromIntegral x
