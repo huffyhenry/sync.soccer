@@ -17,3 +17,13 @@ background = makeColor 7 36 10 1.0
 
 writing :: Gloss.Color
 writing = makeColor 222 238 223 1.0
+
+neutralTeam :: Gloss.Color
+neutralTeam = makeColor 244 234 234 1.0
+
+homeTeam :: Gloss.Color
+homeTeam = makeColor 202 17 15 1.0
+
+awayTeam :: Gloss.Color
+awayTeam = makeColor 60 158 198 1.0
+

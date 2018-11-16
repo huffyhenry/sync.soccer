@@ -152,6 +152,14 @@ makeGame el = Game { gid = attrLookupStrict el read "id",
                    }
 
 
+isAwayTeam :: Game a -> Event b -> Bool
+isAwayTeam game event =
+    (team_id event) == (away_team_id game)
+
+isHomeTeam :: Game a -> Event b -> Bool
+isHomeTeam game event =
+    (team_id event) == (home_team_id game)
+
 convertCoordinates :: Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
 convertCoordinates metaData game =
     game { events = map convertEvent (events game) }
@@ -161,24 +169,22 @@ convertCoordinates metaData game =
         where
         convertCoordinates coords =
             Tracab.Coordinates
-                -- TODO: Obviously wrong.
-                { Tracab.x = perhapsFlipX $ convertX $ xPercentage coords
+                { Tracab.x = convertX $ xPercentage coords
                 , Tracab.y = convertY $ yPercentage coords
                 }
 
         -- We assume that the home team is playing from left to right, it doesn't actually
         -- matter as long as we consistently flip the pitch for *one* team or the other
         -- however, we do need to do this properly when we actually combine the event with
-        -- the tracab locations.
-        perhapsFlipX x =
-            case (team_id event) == (away_team_id game) of
+        -- the tracab locations. Note that we have to flip the *y* as well as the x.
+        perhapsFlipFactor =
+            case isAwayTeam game event of
                 True ->
-                    0 - x
+                    (-1)
                 False ->
-                    x
-
+                    1
 
         convertX = convertUnit $ Tracab.pitchSizeX metaData
         convertY = convertUnit $ Tracab.pitchSizeY metaData
         convertUnit pitchUnit percentage =
-            round $ (percentage * pitchUnit / 100.0) - (pitchUnit / 2.0)
+            perhapsFlipFactor * (round $ (percentage * pitchUnit / 100.0) - (pitchUnit / 2.0))
