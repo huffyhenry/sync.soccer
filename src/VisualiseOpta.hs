@@ -97,7 +97,7 @@ drawEvent game event =
             Nothing ->
                 Gloss.Blank
             Just coordinates ->
-                Gloss.Color (Gloss.makeColor 0.1 0.1 0.9 1.0)
+                Gloss.Color Colors.eventColor
                 $ Visualise.translateCoordinates coordinates
                 $ Gloss.ThickCircle radius thickness
     radius = 0.5
