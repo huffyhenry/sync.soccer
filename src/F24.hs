@@ -160,8 +160,8 @@ isHomeTeam :: Game a -> Event b -> Bool
 isHomeTeam game event =
     (team_id event) == (home_team_id game)
 
-convertCoordinates :: Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
-convertCoordinates metaData game =
+convertCoordinates :: Tracab.TeamKind -> Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
+convertCoordinates flippedFirstHalf metaData game =
     game { events = map convertEvent (events game) }
     where
     convertEvent event =
@@ -173,16 +173,35 @@ convertCoordinates metaData game =
                 , Tracab.y = convertY $ yPercentage coords
                 }
 
-        -- We assume that the home team is playing from left to right, it doesn't actually
-        -- matter as long as we consistently flip the pitch for *one* team or the other
-        -- however, we do need to do this properly when we actually combine the event with
-        -- the tracab locations. Note that we have to flip the *y* as well as the x.
+        -- NOTE: We're going to have to worry about periods of extra-time, I think we have to pass in which
+        -- team was left-to-right in the first period of extra-time because it's not necessarily flipped from
+        -- the second-half of normal time.
+        isFirstHalf = (period_id event) == 1
+        -- All of OPTA's events assume that the team associated with the event are playing from left-to-right.
+        -- However, tracab's coordinates do flip in this manner, so each event must be either flipped or not.
+        -- Once we have determined which team was playing left-to-right in the first half then we know whether
+        -- we need to flip the coordinates from that event or not.
+        -- Note that we have to flip the *y* as well as the x.
+        flippedTeam =
+                case isFirstHalf of
+                    True ->
+                        flippedFirstHalf
+                    False ->
+                        Tracab.oppositionKind flippedFirstHalf
+
+        eventTeam =
+            -- Note this kind of assumes that if the event is not a home-team-event it's an away-team-event
+            -- I'm not sure if there are any 'neutral events' and if so, how we would determine whether it
+            -- needs flipped or not.
+            case isHomeTeam game event of
+                True -> Tracab.Home
+                False -> Tracab.Away
+
+
         perhapsFlipFactor =
-            case isAwayTeam game event of
-                True ->
-                    (-1)
-                False ->
-                    1
+            case eventTeam == flippedTeam of
+                True -> (-1)
+                False -> 1
 
         convertX = convertUnit $ Tracab.pitchSizeX metaData
         convertY = convertUnit $ Tracab.pitchSizeY metaData

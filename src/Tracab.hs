@@ -195,3 +195,28 @@ makePeriod element =
         startFrame = attrLookupStrict element read "iStartFrame",
         endFrame = attrLookupStrict element read "iEndFrame"
     }
+
+
+data TeamKind = Home | Away deriving Eq
+
+oppositionKind :: TeamKind -> TeamKind
+oppositionKind Home = Away
+oppositionKind Away = Home
+
+rightToLeftFirstHalf :: Frames -> TeamKind
+rightToLeftFirstHalf tbData =
+    case homeX > awayX of
+        True ->
+            Home
+        False ->
+            Away
+    where
+    -- Might be able to do better than this.
+    kickOffFrame = head tbData
+    kickOffPositions = Map.elems $ positions kickOffFrame
+    homePositions = filter (\p -> teamId p == 1) kickOffPositions
+    awayPositions = filter (\p -> teamId p == 0) kickOffPositions
+
+    sumX positions = sum $ map (\p -> x $ coordinates p) positions
+    homeX = sumX homePositions
+    awayX = sumX awayPositions
