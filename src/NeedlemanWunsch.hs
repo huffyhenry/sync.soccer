@@ -1,7 +1,7 @@
 module NeedlemanWunsch where
 
 import Data.Array
-import Data.List (maximumBy)
+import Data.List (minimumBy)
 
 data Pair a b = Start
               | GapL b
@@ -40,7 +40,7 @@ align stream1 stream2 sim gap = Alignment (walkback (length s1) (length s2) []) 
     fill 0 0 = Entry Origin 0.0
     fill 0 j = Entry FromLeft (gap*(fromIntegral j))
     fill i 0 = Entry FromTop (gap*(fromIntegral i))
-    fill i j = maximumBy maxVal scores where
+    fill i j = minimumBy maxVal scores where
         scores = [Entry FromLeft ((val $ m!(i, j-1)) + gap),
                   Entry FromTop ((val $ m!(i-1, j)) + gap),
                   Entry FromDiag ((val $ m!(i-1, j-1)) + sim (s1!i) (s2!j))]
