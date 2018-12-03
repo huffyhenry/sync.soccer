@@ -26,6 +26,7 @@ executable sync-soccer
     , xml
     , bytestring
     , array
+    , statistics
 
 -- See https://stackoverflow.com/questions/32123475/profiling-builds-with-stack
 -- for how to invoke stack build and stack exec with profiling.
@@ -42,6 +43,7 @@ executable sync-soccer-profile
     , xml
     , bytestring
     , array
+    , statistics
   ghc-options: -prof -rtsopts
 
 executable sync-soccer-parse

@@ -3,22 +3,32 @@
 import qualified Data.IntMap as Map
 import Data.Maybe (fromJust)
 import System.Environment (getArgs)
+import Statistics.Distribution.Normal as Gaussian
 import qualified Tracab
 import qualified F24
 import qualified NeedlemanWunsch as NW
 
 
--- A toy dissimilarity function of Events and Frames
-sim :: F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
-sim e f = timePenalty + locationPenalty where
-    timePenalty = abs $ (seconds e) - (fromJust $ Tracab.clock f)
-    locationPenalty = distance e f
+clockScore :: Double -> Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+clockScore scale offset e f =
+    let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
+        dist = abs $ seconds - (fromJust $ Tracab.clock f)
+    in Gaussian.standard.logDensity((dist - offset) / scale)
 
-    seconds x = fromIntegral $ 60 * (F24.min x) + (F24.sec x)
-    distance ev fr = let
-        evX = (Tracab.x . fromJust . F24.coordinates) ev
-        frX = (Tracab.x . Tracab.coordinates . Tracab.ballPosition) fr
-        in fromIntegral $ abs $ evX-frX
+locationScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+locationScore scale e f =
+    let eX = (Tracab.x . fromJust . F24.coordinates) e
+        eY = (Tracab.y . fromJust . F24.coordinates) e
+        fX = (Tracab.x . Tracab.coordinates . Tracab.ballPosition) f
+        fY = (Tracab.y . Tracab.coordinates . Tracab.ballPosition) f
+        xDist = fromIntegral $ eX - fX
+        yDist = fromIntegral $ eY - fY
+        dist = sqrt $ xDist**2.0 + yDist**2.0
+    in Gaussian.standard.logDensity(dist / scale)
+
+totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+totalScore offset e f = clockScore offset e f + locationScore e f
+
 
 main :: IO ()
 main = do
@@ -31,6 +41,6 @@ main = do
     let p1start = (Tracab.startFrame . head . Tracab.periods) tbMeta
     let p1end = (Tracab.endFrame . head . Tracab.periods) tbMeta
     let frames = filter (\f -> (Tracab.frameId f <= p1end) && (Tracab.frameId f >= p1start)) tbData
-    let gap = 1.0
-    let sync = NW.align events frames sim gap
+    let gap = -1.0
+    let sync = NW.align events frames (penalty 0.0) gap
     putStrLn $ show sync
