@@ -6,6 +6,7 @@ import Data.Maybe (maybe, Maybe, listToMaybe)
 import System.IO  (openFile, hGetContents, hClose, IOMode(ReadMode))
 import System.Environment (getArgs)
 import Text.XML.Light.Types ( Element )
+import Text.Printf (printf)
 import qualified XmlUtils
 import XmlUtils ( attrLookupStrict, attrLookup )
 import qualified XmlUtils as Xml
@@ -48,6 +49,19 @@ data Frame = Frame{
     clock :: Maybe Double
     }
 type Frames = [Frame]
+
+instance Show Frame where
+    show f =
+        let formatClock :: Double -> String
+            formatClock c = printf "%02.d:%02d.%03d" mins secs msec where
+                mins = floor (c / 60.0) :: Int
+                secs = floor (c - 60.0*(fromIntegral mins)) :: Int
+                msec = round (1000.0*(c - 60.0*(fromIntegral mins) - (fromIntegral secs))) :: Int
+            base = "Frame " ++ show (frameId f)
+            extra = case clock f of
+                Nothing -> ""
+                Just c -> printf " (implied clock: %s)" (formatClock c)
+        in base ++ extra
 
 -- The key method parsing a line of the Tracab data file into a Frame object
 parseFrame :: Metadata -> String -> Frame

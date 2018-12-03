@@ -7,25 +7,6 @@ import qualified Tracab
 import qualified F24
 import qualified NeedlemanWunsch as NW
 
--- Make String-String and F24-Tracab alignments printable
-instance Show (NW.Alignment Char Char) where
-    show (NW.Alignment []) = []
-    show (NW.Alignment ((NW.GapL y):ps)) = "|" ++ [y] ++ "\n" ++ show (NW.Alignment ps)
-    show (NW.Alignment ((NW.GapR x):ps)) = [x] ++ "|" ++ "\n" ++ show (NW.Alignment ps)
-    show (NW.Alignment ((NW.Match x y):ps)) = [x] ++ [y] ++ "\n" ++ show (NW.Alignment ps)
-
-instance Show (NW.Alignment (F24.Event a) Tracab.Frame) where
-    show (NW.Alignment []) = ""
-    show (NW.Alignment ((NW.Match e f):rest)) =
-        let
-            padRight n s = foldl (++) "" (replicate (n - length s) " ")
-            getTime = \e -> (show . F24.min) e ++ ":" ++ (show . F24.sec) e
-            getClock = \f -> show $ ((fromJust . Tracab.clock) f) / 60.0
-            eDesc =  getTime e ++ " " ++ F24.eventTypeName e
-            fDesc = "Frame " ++ (show . Tracab.frameId) f ++ " (clock=" ++ getClock f ++ ")"
-        in eDesc ++ (padRight 30 eDesc) ++ fDesc ++ "\n" ++ show (NW.Alignment rest)
-    show (NW.Alignment (_:rest)) = ".\n" ++ show (NW.Alignment rest)
-
 
 -- A toy dissimilarity function of Events and Frames
 sim :: F24.Event Tracab.Coordinates -> Tracab.Frame -> Double

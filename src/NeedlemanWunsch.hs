@@ -1,7 +1,7 @@
 module NeedlemanWunsch where
 
 import Data.Array
-import Data.List (minimumBy)
+import Data.List (minimumBy, intersperse)
 
 data Pair a b = Start
               | GapL b
@@ -9,6 +9,33 @@ data Pair a b = Start
               | Match a b
 
 data Alignment a b = Alignment [Pair a b]
+
+-- Print an Alignment line-by-line, summarising gaps.
+-- Works best if both a and b print as short one-liners.
+instance (Show a, Show b) => Show (Alignment a b) where
+    show (Alignment pairs) =
+        let -- Figure out the optimal width of the left column
+            isMatch (Match _ _) = True
+            isMatch _ = False
+            matches = filter isMatch pairs
+            getLeft (Match x y) = x
+            leftWidth = maximum (map (length . show . getLeft) matches) + 4
+
+            -- Display either a match or a compressed gap in a single line
+            padRight n s = s ++ foldl (++) "" (replicate (n - length s) " ")
+            showMatch (Match x y) = padRight leftWidth (show x) ++ (show y)
+            showGap 0 = ""
+            showGap n = "--gap length " ++ show n ++ "--"
+            showGaps 0 0 = ""
+            showGaps l r = (padRight leftWidth) (showGap l) ++ (showGap r)
+
+            -- Scan the alignment, count gaps, and generate lines of text
+            scan (l, r) ((Match x y):rest) = [showGaps l r, showMatch (Match x y)] ++ scan (0, 0) rest
+            scan (l, r) [] = [showGaps l r]
+            scan (l, r) ((GapL _):rest) = scan (l+1, r) rest
+            scan (l, r) ((GapR _):rest) = scan (l, r+1) rest
+            desc = scan (0, 0) pairs
+        in foldl (++) "" (intersperse "\n" (filter (\s -> s /= "") desc))
 
 
 -- Pointer to the cell whose value contributed to the current one.

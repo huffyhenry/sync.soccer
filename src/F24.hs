@@ -5,6 +5,7 @@ import Prelude hiding (min)
 import qualified Data.ByteString as BS
 import Text.XML.Light.Input
 import Text.XML.Light.Types
+import Text.Printf (printf)
 import Control.Exception
 import Control.Monad (liftM)
 import Data.DateTime
@@ -57,11 +58,8 @@ instance Eq (Event a) where
     e1 == e2 = eid e1 == eid e2
 
 instance Show (Event a) where
-    show e = let t = show (type_id e)
-                 i = show (eid e)
-                 p = maybe "" (\pid -> "by player " ++ show pid) (player_id e)
-                 c = show (team_id e)
-             in "E[" ++ i ++ "]" ++ " of type " ++ t ++ " for " ++ c ++ p
+    show e = let typeName = eventTypeName e
+             in printf "Event %d (%02d:%02d %s)" (eid e) (min e) (sec e) typeName
 
 hasq :: Int -> Event a -> Bool
 hasq i e = any (hasQid i) (qs e)
