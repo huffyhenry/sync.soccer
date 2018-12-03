@@ -96,7 +96,7 @@ parseFrame meta inputLine =
         , speed = read speedStr
         }
       where
-      [xStr, yStr, speedStr, teamStr, statusStr, _] = splitOn ',' inputStr
+      xStr:yStr:zStr:speedStr:teamStr:rest = (splitOn ',') inputStr
 
 
 -- Parse the entire Tracab data file into a list of frames
