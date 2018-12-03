@@ -56,8 +56,8 @@ val (Entry _ v) = v
 
 
 -- The Needleman-Wunsch dynamic programming algorithm
-align :: [a] -> [b] -> (a -> b -> Double) -> Double -> Alignment a b
-align stream1 stream2 sim gap = Alignment (walkback (length s1) (length s2) []) where
+align :: [a] -> [b] -> (a -> b -> Double) -> Double -> Double -> Alignment a b
+align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2) []) where
     -- Convert to 1-based arrays for easy indexing and fast random access
     s1 = listArray (1, length stream1) stream1
     s2 = listArray (1, length stream2) stream2
@@ -65,11 +65,11 @@ align stream1 stream2 sim gap = Alignment (walkback (length s1) (length s2) []) 
     -- Fill in the N-W matrix
     fill :: Int -> Int -> Entry
     fill 0 0 = Entry Origin 0.0
-    fill 0 j = Entry FromLeft (gap*(fromIntegral j))
-    fill i 0 = Entry FromTop (gap*(fromIntegral i))
+    fill 0 j = Entry FromLeft (gapr*(fromIntegral j))
+    fill i 0 = Entry FromTop (gapl*(fromIntegral i))
     fill i j = maximumBy maxVal scores where
-        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gap),
-                  Entry FromTop ((val $ m!(i-1, j)) + gap),
+        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gapr),
+                  Entry FromTop ((val $ m!(i-1, j)) + gapl),
                   Entry FromDiag ((val $ m!(i-1, j-1)) + sim (s1!i) (s2!j))]
         maxVal e1 e2 = if val e1 >= val e2 then GT else LT
 

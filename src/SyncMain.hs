@@ -42,6 +42,5 @@ main = do
     let p1start = (Tracab.startFrame . head . Tracab.periods) tbMeta
     let p1end = (Tracab.endFrame . head . Tracab.periods) tbMeta
     let frames = filter (\f -> (Tracab.frameId f <= p1end) && (Tracab.frameId f >= p1start)) tbData
-    let gap = -10.0
-    let sync = NW.align events frames (totalScore 0.0) gap
+    let sync = NW.align events frames (totalScore 0.0) (-1000000.0) 0.0
     putStrLn $ show sync
