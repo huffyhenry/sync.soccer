@@ -160,8 +160,8 @@ isHomeTeam :: Game a -> Event b -> Bool
 isHomeTeam game event =
     (team_id event) == (home_team_id game)
 
-convertCoordinates :: Tracab.TeamKind -> Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
-convertCoordinates flippedFirstHalf metaData game =
+convertGameCoordinates :: Tracab.TeamKind -> Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
+convertGameCoordinates flippedFirstHalf metaData game =
     game { events = map convertEvent (events game) }
     where
     convertEvent event =
@@ -169,9 +169,52 @@ convertCoordinates flippedFirstHalf metaData game =
         where
         convertCoordinates coords =
             Tracab.Coordinates
-                { Tracab.x = convertX $ xPercentage coords
-                , Tracab.y = convertY $ yPercentage coords
+                { Tracab.x = convertedX
+                , Tracab.y = convertedY
                 }
+            where
+            isInPenaltyBox =
+                (optaX <= 17.0 || optaX >= 83) &&
+                (21.1 <= optaY && optaY <= 78.9)
+
+            convertedX = convertYards pitchLength xYards
+            pitchLength = Tracab.pitchSizeX metaData
+            optaX = xPercentage coords
+            xYards =
+                -- So note, for the x coordinate to be treated as in the penalty box
+                -- the event has to be entirely within a penalty box with respect to
+                -- both x and y coordinates, not just the x. Same is true below for y
+                -- (which is less controversial).
+                case isInPenaltyBox of
+                    False ->
+                        optaX * pitchLength / 100.0
+                    True ->
+                        case optaX <= 17.0 of
+                            True ->
+                                optaX * 18.0 / 17.0
+                            False ->
+                                (pitchLength - (100.0 - optaX)) * (18.0 / 17.0)
+
+            convertedY = convertYards pitchWidth yYards
+            pitchWidth = Tracab.pitchSizeY metaData
+            optaY = yPercentage coords
+            yYards =
+                case isInPenaltyBox of
+                    False ->
+                        optaY * pitchWidth / 100.0
+                    True ->
+                        -- A penalty box extends 18y from both sides of the goal which is itself 8 y.
+                        -- For opta the 'bottom' is at 21.1 and the 'top' at 78.9.
+                        optaY * (18.0 + 18.0 + 8) / (78.9 - 21.1)
+
+            convertYards pitchSize yards =
+                perhapsFlipFactor * (round $ yards - (pitchSize / 2.0))
+
+
+        perhapsFlipFactor =
+            case eventTeam == flippedTeam of
+                True -> (-1)
+                False -> 1
 
         -- NOTE: We're going to have to worry about periods of extra-time, I think we have to pass in which
         -- team was left-to-right in the first period of extra-time because it's not necessarily flipped from
@@ -188,7 +231,6 @@ convertCoordinates flippedFirstHalf metaData game =
                         flippedFirstHalf
                     False ->
                         Tracab.oppositionKind flippedFirstHalf
-
         eventTeam =
             -- Note this kind of assumes that if the event is not a home-team-event it's an away-team-event
             -- I'm not sure if there are any 'neutral events' and if so, how we would determine whether it
@@ -198,15 +240,6 @@ convertCoordinates flippedFirstHalf metaData game =
                 False -> Tracab.Away
 
 
-        perhapsFlipFactor =
-            case eventTeam == flippedTeam of
-                True -> (-1)
-                False -> 1
-
-        convertX = convertUnit $ Tracab.pitchSizeX metaData
-        convertY = convertUnit $ Tracab.pitchSizeY metaData
-        convertUnit pitchUnit percentage =
-            perhapsFlipFactor * (round $ (percentage * pitchUnit / 100.0) - (pitchUnit / 2.0))
 
 eventTypeName :: Event a -> String
 eventTypeName event =
