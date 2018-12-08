@@ -1,21 +1,50 @@
 module NeedlemanWunsch where
 
 import Data.Array
-import Data.List (maximumBy)
+import Data.List (maximumBy, intersperse)
 
 data Pair a b = Start
               | GapL b
               | GapR a
               | Match a b
 
-type Alignment a b = [Pair a b]
+data Alignment a b = Alignment [Pair a b]
 
--- We could also just use this function make 'Alignment' in the Show typeclass.
-showAlignment :: Alignment Char Char -> String
-showAlignment [] = []
-showAlignment ((GapL y):ps) = "|" ++ [y] ++ "\n" ++ showAlignment ps
-showAlignment ((GapR x):ps) = [x] ++ "|" ++ "\n" ++ showAlignment ps
-showAlignment ((Match x y):ps) = [x] ++ [y] ++ "\n" ++ showAlignment ps
+-- Print an Alignment line-by-line, summarising gaps.
+-- Works best if both a and b print as short one-liners.
+instance (Show a, Show b) => Show (Alignment a b) where
+    show (Alignment pairs) =
+        let -- Figure out the optimal width of the left column
+            isMatch (Match _ _) = True
+            isMatch _ = False
+            matches = filter isMatch pairs
+            getLeft (Match x y) = x
+            leftWidth = case map (length . show . getLeft) matches of
+                [] -> 25
+                l -> (maximum l) + 4
+
+            -- Display either a match or a compressed gap in a single line
+            padRight n s = s ++ foldl (++) "" (replicate (n - length s) " ")
+            showMatch (Match x y) = padRight leftWidth (show x) ++ (show y)
+            showGap 0 = ""
+            showGap n = "--gap length " ++ show n ++ "--"
+            showGaps 0 0 = ""
+            showGaps l r = (padRight leftWidth) (showGap l) ++ (showGap r)
+
+            -- Scan the alignment, count gaps, and generate lines of text
+            scan (l, r) ((Match x y):rest) = [showGaps l r, showMatch (Match x y)] ++ scan (0, 0) rest
+            scan (l, r) [] = [showGaps l r]
+            scan (l, r) ((GapL _):rest) = scan (l+1, r) rest
+            scan (l, r) ((GapR _):rest) = scan (l, r+1) rest
+            desc = scan (0, 0) pairs
+        in foldl (++) "" (intersperse "\n" (filter (\s -> s /= "") desc))
+
+-- Compute the total alignment score based on the similarity function and gap penalties
+alignmentScore :: (a -> b -> Double) -> Double -> Double -> Alignment a b -> Double
+alignmentScore sim gapl gapr (Alignment pairs) = sum (map value pairs) where
+    value (GapL _) = gapl
+    value (GapR _) = gapr
+    value (Match x y) = sim x y
 
 -- Pointer to the cell whose value contributed to the current one.
 -- In contrast to classical N-W, we have unique pointers.
@@ -35,8 +64,8 @@ val (Entry _ v) = v
 
 
 -- The Needleman-Wunsch dynamic programming algorithm
-align :: [a] -> [b] -> (a -> b -> Double) -> Double -> Alignment a b
-align stream1 stream2 sim gap = walkback (length s1) (length s2) [] where
+align :: [a] -> [b] -> (a -> b -> Double) -> Double -> Double -> Alignment a b
+align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2) []) where
     -- Convert to 1-based arrays for easy indexing and fast random access
     s1 = listArray (1, length stream1) stream1
     s2 = listArray (1, length stream2) stream2
@@ -44,16 +73,15 @@ align stream1 stream2 sim gap = walkback (length s1) (length s2) [] where
     -- Fill in the N-W matrix
     fill :: Int -> Int -> Entry
     fill 0 0 = Entry Origin 0.0
-    fill 0 j = Entry FromLeft (gap*(fromIntegral j))
-    fill i 0 = Entry FromTop (gap*(fromIntegral i))
+    fill 0 j = Entry FromLeft (gapr*(fromIntegral j))
+    fill i 0 = Entry FromTop (gapl*(fromIntegral i))
     fill i j = maximumBy maxVal scores where
-        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gap),
-                  Entry FromTop ((val $ m!(i-1, j)) + gap),
+        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gapl),
+                  Entry FromTop ((val $ m!(i-1, j)) + gapr),
                   Entry FromDiag ((val $ m!(i-1, j-1)) + sim (s1!i) (s2!j))]
         maxVal e1 e2 = if val e1 >= val e2 then GT else LT
 
     -- Walk through the matrix and reconstruct the best alignment
-    --walkback :: Int -> Int -> [Pair a b] -> Alignment a b
     walkback 0 0 complete = complete
     walkback i j partial = walkback i' j' (pair:partial) where
         (i', j', pair) = case src $ m!(i, j) of
