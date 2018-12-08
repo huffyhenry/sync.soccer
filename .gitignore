@@ -3,3 +3,5 @@ data/
 .stack-work/
 .idea/
 *.csv
+R.Rproj
+.Rproj.user
