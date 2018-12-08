@@ -106,7 +106,7 @@ parseFrame meta inputLine =
       Position
         { participantId = 0
         , coordinates = Coordinates { x = read xStr, y = read yStr }
-        , teamId = read teamStr
+        , teamId = 0  -- FIXME Set the ball owner team properly
         , speed = read speedStr
         }
       where
