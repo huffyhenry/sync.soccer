@@ -2,3 +2,4 @@ truncated-data/
 data/
 .stack-work/
 .idea/
+*.csv

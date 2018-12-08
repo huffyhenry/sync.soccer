@@ -16,7 +16,7 @@ extra-source-files:  README.md
 executable sync-soccer
   hs-source-dirs:      src
   main-is:             SyncMain.hs
-  other-modules:       Tracab, F24, NeedlemanWunsch, XmlUtils
+  other-modules:       Tracab, F24, NeedlemanWunsch, XmlUtils, Csvs
   default-language:    Haskell2010
   build-depends:
       base >= 4.7 && < 5

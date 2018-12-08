@@ -8,6 +8,7 @@ import Statistics.Distribution.Normal as Gaussian
 import qualified Tracab
 import qualified F24
 import qualified NeedlemanWunsch as NW
+import qualified Csvs as CSV
 
 
 clockScore :: Double -> Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
@@ -58,3 +59,8 @@ main = do
     putStr $ (show $ length frames2) ++ " frames, "
     putStr $ (show $ length events2) ++ " events, "
     putStrLn $ "total score " ++ show (NW.alignmentScore sim gapl gapr sync) ++ "."
+
+    -- Write parsed data to CSVs for animation
+    CSV.frames2Csv frames2 "data/csv/frames.csv"
+    CSV.events2Csv events2 "data/csv/events.csv"
+    CSV.alignment2Csv sync "data/csv/sync.csv"
