@@ -211,7 +211,8 @@ makePeriod element =
     }
 
 
-data TeamKind = Home | Away deriving Eq
+data TeamKind = Home | Away deriving (Eq, Show)
+
 
 oppositionKind :: TeamKind -> TeamKind
 oppositionKind Home = Away
