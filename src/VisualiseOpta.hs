@@ -15,7 +15,6 @@ main
     meta <- Tracab.parseMetaFile metafile
     f24game <- F24.loadGameFromFile datafile
     let game = F24.convertGameCoordinates Tracab.Home meta f24game
-    let game = F24.convertCoordinates Tracab.Home meta f24game
     animate meta game
 
 animate :: Tracab.Metadata -> F24.Game Tracab.Coordinates -> IO ()
