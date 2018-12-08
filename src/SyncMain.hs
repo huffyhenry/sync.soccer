@@ -42,5 +42,19 @@ main = do
     let p1start = (Tracab.startFrame . head . Tracab.periods) tbMeta
     let p1end = (Tracab.endFrame . head . Tracab.periods) tbMeta
     let frames = filter (\f -> (Tracab.frameId f <= p1end) && (Tracab.frameId f >= p1start)) tbData
-    let sync = NW.align events frames (totalScore 0.0) (-1000000.0) 0.0
+
+    -- Take just the first ~20 minutes to stay under 16GB RAM for now.
+    let events2 = filter (\e -> F24.min e < 20) events
+    let frames2 = take (25*60*25) frames
+
+    -- The penalty for leaving frames unaligned needs to be small.
+    -- Conversely, leaving events unaligned should be costly.
+    -- Note that the score for a Match can be negative on the log-density scale
+    let gapl = -10.0    -- Leaves a frame unaligned for P < exp(-10) = 4.5e-5
+    let gapr = -1000.0
+    let sim = totalScore 0.0
+    let sync = NW.align events2 frames2 sim gapl gapr
     putStrLn $ show sync
+    putStr $ (show $ length frames2) ++ " frames, "
+    putStr $ (show $ length events2) ++ " events, "
+    putStrLn $ "total score " ++ show (NW.alignmentScore sim gapl gapr sync) ++ "."

@@ -19,7 +19,9 @@ instance (Show a, Show b) => Show (Alignment a b) where
             isMatch _ = False
             matches = filter isMatch pairs
             getLeft (Match x y) = x
-            leftWidth = maximum (map (length . show . getLeft) matches) + 4
+            leftWidth = case map (length . show . getLeft) matches of
+                [] -> 25
+                l -> (maximum l) + 4
 
             -- Display either a match or a compressed gap in a single line
             padRight n s = s ++ foldl (++) "" (replicate (n - length s) " ")
@@ -37,6 +39,12 @@ instance (Show a, Show b) => Show (Alignment a b) where
             desc = scan (0, 0) pairs
         in foldl (++) "" (intersperse "\n" (filter (\s -> s /= "") desc))
 
+-- Compute the total alignment score based on the similarity function and gap penalties
+alignmentScore :: (a -> b -> Double) -> Double -> Double -> Alignment a b -> Double
+alignmentScore sim gapl gapr (Alignment pairs) = sum (map value pairs) where
+    value (GapL _) = gapl
+    value (GapR _) = gapr
+    value (Match x y) = sim x y
 
 -- Pointer to the cell whose value contributed to the current one.
 -- In contrast to classical N-W, we have unique pointers.
@@ -68,8 +76,8 @@ align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2
     fill 0 j = Entry FromLeft (gapr*(fromIntegral j))
     fill i 0 = Entry FromTop (gapl*(fromIntegral i))
     fill i j = maximumBy maxVal scores where
-        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gapr),
-                  Entry FromTop ((val $ m!(i-1, j)) + gapl),
+        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gapl),
+                  Entry FromTop ((val $ m!(i-1, j)) + gapr),
                   Entry FromDiag ((val $ m!(i-1, j-1)) + sim (s1!i) (s2!j))]
         maxVal e1 e2 = if val e1 >= val e2 then GT else LT
 
