@@ -36,11 +36,13 @@ data Coordinates = Coordinates {
 data Position = Position{
     participantId :: Int,
     coordinates :: Coordinates,
-    teamId :: Int,
-    speed :: Float
+    mTeam :: Maybe TeamKind,
+    speed :: Float,
+    mBallStatus :: Maybe BallStatus
 }
 type Positions = Map.IntMap Position
 
+data BallStatus = Alive | Dead
 -- A single complete snapshot of tracking data
 data Frame = Frame{
     frameId :: Int,
@@ -97,20 +99,47 @@ parseFrame meta inputLine =
       Position
         { participantId = read idStr
         , coordinates = Coordinates { x = read xStr, y = read yStr }
-        , teamId = read teamStr
+        , mTeam = team
         , speed = read speedStr
+        , mBallStatus = Nothing
         }
       where
       [teamStr,idStr,jerseyNumberStr,xStr,yStr,speedStr] = splitOn ',' inputStr
+      team =
+        case teamStr of
+            "1" ->
+                Just Home
+            "0" ->
+                Just Away
+            _ ->
+                Nothing
+
   parseBallPosition inputStr =
       Position
         { participantId = 0
         , coordinates = Coordinates { x = read xStr, y = read yStr }
-        , teamId = 0  -- FIXME Set the ball owner team properly
+        , mTeam = team
+        , mBallStatus = ballStatus
         , speed = read speedStr
         }
       where
-      xStr:yStr:zStr:speedStr:teamStr:rest = (splitOn ',') inputStr
+      xStr:yStr:zStr:speedStr:rest = (splitOn ',') inputStr
+      (team, otherFields) =
+        case rest of
+            "H" : remainder ->
+                (Just Home, remainder)
+            "A" : remainder ->
+                (Just Away, remainder)
+            _ ->
+                (Nothing, rest)
+      ballStatus =
+        case otherFields of
+            "Alive" : _ ->
+                Just Alive
+            "Dead" : _ ->
+                Just Dead
+            _ ->
+                Nothing
 
 
 -- Parse the entire Tracab data file into a list of frames
@@ -229,8 +258,8 @@ rightToLeftFirstHalf tbData =
     -- Might be able to do better than this.
     kickOffFrame = head tbData
     kickOffPositions = Map.elems $ positions kickOffFrame
-    homePositions = filter (\p -> teamId p == 1) kickOffPositions
-    awayPositions = filter (\p -> teamId p == 0) kickOffPositions
+    homePositions = filter (\p -> mTeam p == Just Home) kickOffPositions
+    awayPositions = filter (\p -> mTeam p == Just Away) kickOffPositions
 
     sumX positions = sum $ map (\p -> x $ coordinates p) positions
     homeX = sumX homePositions

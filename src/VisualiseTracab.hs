@@ -48,11 +48,10 @@ renderPlayer position =
     renderPosition 1 teamColor position
     where
     teamColor =
-        case Tracab.teamId position of
-            0 -> makeColor 0.1 0.1 0.9 1.0
-            1 -> makeColor 0.1 0.9 0.1 1.0
-            3 -> makeColor 0.9 0.9 0.1 1.0
-            _ -> makeColor 0.9 0.9 0.9 1.0
+        case Tracab.mTeam position of
+            Just Tracab.Home -> makeColor 0.1 0.1 0.9 1.0
+            Just Tracab.Away -> makeColor 0.1 0.9 0.1 1.0
+            Nothing -> makeColor 0.9 0.9 0.1 1.0
 
 renderBall :: Tracab.Position -> Picture
 renderBall position =
