@@ -54,7 +54,7 @@ data Source = Origin
             | FromDiag
 
 -- Type of the N-W matrix entry: pointer to source cell and the value
-data Entry = Entry Source Double
+data Entry = Entry !Source !Double
 
 src :: Entry -> Source
 src (Entry s _) = s
