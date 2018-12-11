@@ -227,7 +227,7 @@ makeMetadata element =
       , pitchSizeX = attrLookupStrict element read "fPitchXSizeMeters"
       , pitchSizeY = attrLookupStrict element read "fPitchYSizeMeters"
       , trackingX = attrLookupStrict element read "fTrackingAreaXSizeMeters"
-      , trackingY = attrLookupStrict element read "fTrakcingAreaYSizeMeters"
+      , trackingY = attrLookupStrict element read "fTrackingAreaYSizeMeters"
       , periods = map makePeriod $ Xml.getChildrenWithQName "period" element
       }
 
