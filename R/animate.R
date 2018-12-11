@@ -15,7 +15,7 @@ data <- read_csv(frames.file) %>%
   mutate(team.f=factor(ifelse(object == 0, -1, team.f)))  # Give the ball its own "team"
 
 # Scatter Tracab and Opta y coordinates to check for agreement
-ggplot(data, aes(x=y.e, y=x.e)) + geom_point()
+ggplot(data, aes(x=y.e, y=y.f)) + geom_point()
 
 # Take only an intial segment of data for animation development
 data <- data %>% head(10000)
