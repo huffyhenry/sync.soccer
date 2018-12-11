@@ -8,12 +8,17 @@ events.file <- "../data/csv/events.csv"
 sync.file <- "../data/csv/sync.csv"
 
 data <- read_csv(frames.file) %>%
-  head(10000) %>%
   filter(team %in% c(0,1)) %>%   # Render players only
   left_join(read_csv(sync.file)) %>%
   mutate(event=ifelse(object==0, event, NA)) %>%
   left_join(read_csv(events.file), by="event", suffix=c(".f", ".e")) %>%
   mutate(team.f=factor(ifelse(object == 0, -1, team.f)))  # Give the ball its own "team"
+
+# Scatter Tracab and Opta y coordinates to check for agreement
+ggplot(data, aes(x=y.e, y=x.e)) + geom_point()
+
+# Take only an intial segment of data for animation development
+data <- data %>% head(10000)
 
 animation <- ggplot(data, aes(x=x.f, y=y.f)) +
   geom_point(data=filter(data, team.f==-1), size=2) +
