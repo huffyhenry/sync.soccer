@@ -160,7 +160,6 @@ isHomeTeam game event =
 
 convertGameCoordinates :: Tracab.TeamKind -> Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
 convertGameCoordinates flippedFirstHalf metaData game =
-
     game { events = map convertEvent (events game) }
     where
     convertEvent event =

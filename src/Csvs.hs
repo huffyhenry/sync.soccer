@@ -16,7 +16,7 @@ events2Csv events filepath = do
     let format = "%d,%d,%d,%s,%d,%d,%d"
     let e2record e = printf format (F24.eid e)
                                    ((Tcb.x . fromJust . F24.coordinates) e)
-                                   ((Tcb.x . fromJust . F24.coordinates) e)
+                                   ((Tcb.y . fromJust . F24.coordinates) e)
                                    (F24.eventTypeName e)
                                    (F24.team_id e)
                                    (F24.min e)
