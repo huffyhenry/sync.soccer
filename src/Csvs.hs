@@ -16,7 +16,7 @@ events2Csv events filepath = do
     let format = "%d,%d,%d,%s,%d,%d,%d"
     let e2record e = printf format (F24.eid e)
                                    ((Tcb.x . fromJust . F24.coordinates) e)
-                                   ((Tcb.x . fromJust . F24.coordinates) e)
+                                   ((Tcb.y . fromJust . F24.coordinates) e)
                                    (F24.eventTypeName e)
                                    (F24.team_id e)
                                    (F24.min e)
@@ -24,14 +24,21 @@ events2Csv events filepath = do
     writeFile filepath (unlines (header:(map e2record events)))
 
 
+showTeam :: Maybe Tcb.TeamKind -> String
+showTeam team =
+    case team of
+        Just Tcb.Home -> "1"
+        Just Tcb.Away -> "0"
+        Nothing -> "3"
+
 frames2Csv :: Tcb.Frames -> String -> IO ()
 frames2Csv frames filepath = do
     let header = "x,y,object,team,clock,frame"
-    let format = "%d,%d,%d,%d,%.3f,%d"
+    let format = "%d,%d,%d,%s,%.3f,%d"
     let fp2record (f, p) = printf format (Tcb.x (Tcb.coordinates p))
                                          (Tcb.y (Tcb.coordinates p))
                                          (Tcb.participantId p)
-                                         (Tcb.teamId p)
+                                         (showTeam $ Tcb.mTeam p)
                                          (fromJust (Tcb.clock f))
                                          (Tcb.frameId f)
     let meltFrame f = (f, Tcb.ballPosition f):[(f, pos) | pos <- elems (Tcb.positions f)]

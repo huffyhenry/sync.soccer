@@ -160,7 +160,6 @@ isHomeTeam game event =
 
 convertGameCoordinates :: Tracab.TeamKind -> Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
 convertGameCoordinates flippedFirstHalf metaData game =
-
     game { events = map convertEvent (events game) }
     where
     convertEvent event =
@@ -176,38 +175,55 @@ convertGameCoordinates flippedFirstHalf metaData game =
                 (optaX <= 17.0 || optaX >= 83) &&
                 (21.1 <= optaY && optaY <= 78.9)
 
-            convertedX = convertYards pitchLength xYards
+            convertedX = convertCentiMeters pitchLength xCentiMeters
             pitchLength = Tracab.pitchSizeX metaData
             optaX = xPercentage coords
-            xYards =
+            xCentiMeters =
                 -- So note, for the x coordinate to be treated as in the penalty box
                 -- the event has to be entirely within a penalty box with respect to
                 -- both x and y coordinates, not just the x. Same is true below for y
                 -- (which is less controversial).
                 case isInPenaltyBox of
                     False ->
-                        optaX * pitchLength / 100.0
+                        -- The tracab pitch length is given in *meters* but the x-coordinate of
+                        -- a frame is given in centi-meters. The optaX is given in percentage so normally
+                        -- to find out how far along the pitch we'd find out what 1% of the pitch is and
+                        -- multiply it by the optaX (a percentage). However 1% is just the pitchLength divided
+                        -- by 100, but since the pitch length is given in meters it's already divided by 100.
+                        optaX * pitchLength
                     True ->
                         case optaX <= 17.0 of
                             True ->
-                                optaX * 18.0 / 17.0
+                                yards * 91.44
+                                where
+                                yards = optaX * 18.0 / 17.0
                             False ->
-                                (pitchLength - (100.0 - optaX)) * (18.0 / 17.0)
+                                100 * meters
+                                where
+                                meters = pitchLength - metersFromOppGoal
+                                metersFromOppGoal = 0.9144 * yardsFromOppGoal
+                                yardsFromOppGoal = percentageFromOppGoal * (18.0 / 17.0)
+                                percentageFromOppGoal = 100.0 - optaX
 
-            convertedY = convertYards pitchWidth yYards
+            convertedY = convertCentiMeters pitchWidth yCentiMeters
             pitchWidth = Tracab.pitchSizeY metaData
             optaY = yPercentage coords
-            yYards =
+            yCentiMeters =
                 case isInPenaltyBox of
                     False ->
-                        optaY * pitchWidth / 100.0
+                        -- See above, basically the pitchWidth is given in meters but the y-coordinate we
+                        -- want is in centi-meters.
+                        optaY * pitchWidth
                     True ->
                         -- A penalty box extends 18y from both sides of the goal which is itself 8 y.
                         -- For opta the 'bottom' is at 21.1 and the 'top' at 78.9.
-                        optaY * (18.0 + 18.0 + 8) / (78.9 - 21.1)
+                        yards * 91.44
+                        where
+                        yards = optaY * (18.0 + 18.0 + 8) / (78.9 - 21.1)
 
-            convertYards pitchSize yards =
-                perhapsFlipFactor * (round $ yards - (pitchSize / 2.0))
+            convertCentiMeters pitchSize centimeters =
+                -- Again the pitch size is given in meters so we have to multiply by 100.
+                perhapsFlipFactor * (round $ centimeters - (pitchSize * 100 / 2.0))
 
 
         perhapsFlipFactor =
