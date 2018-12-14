@@ -40,10 +40,10 @@ instance (Show a, Show b) => Show (Alignment a b) where
         in foldl (++) "" (intersperse "\n" (filter (\s -> s /= "") desc))
 
 -- Compute the total alignment score based on the similarity function and gap penalties
-alignmentScore :: (a -> b -> Double) -> Double -> Double -> Alignment a b -> Double
+alignmentScore :: (a -> b -> Double) -> (b -> Double) -> (a -> Double) -> Alignment a b -> Double
 alignmentScore sim gapl gapr (Alignment pairs) = sum (map value pairs) where
-    value (GapL _) = gapl
-    value (GapR _) = gapr
+    value (GapL y) = gapl y
+    value (GapR x) = gapr x
     value (Match x y) = sim x y
 
 -- Pointer to the cell whose value contributed to the current one.
@@ -64,7 +64,7 @@ val (Entry _ v) = v
 
 
 -- The Needleman-Wunsch dynamic programming algorithm
-align :: [a] -> [b] -> (a -> b -> Double) -> Double -> Double -> Alignment a b
+align :: [a] -> [b] -> (a -> b -> Double) -> (b -> Double) -> (a -> Double) -> Alignment a b
 align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2) []) where
     -- Convert to 1-based arrays for easy indexing and fast random access
     s1 = listArray (1, length stream1) stream1
@@ -73,11 +73,11 @@ align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2
     -- Fill in the N-W matrix
     fill :: Int -> Int -> Entry
     fill 0 0 = Entry Origin 0.0
-    fill 0 j = Entry FromLeft (gapr*(fromIntegral j))
-    fill i 0 = Entry FromTop (gapl*(fromIntegral i))
+    fill 0 j = Entry FromLeft (gapl (s2!j) + val (fill 0 (j-1)))
+    fill i 0 = Entry FromTop (gapr (s1!i) + val (fill (i-1) 0))
     fill i j = maximumBy maxVal scores where
-        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gapl),
-                  Entry FromTop ((val $ m!(i-1, j)) + gapr),
+        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gapl (s2!j)),
+                  Entry FromTop ((val $ m!(i-1, j)) + gapr (s1!i)),
                   Entry FromDiag ((val $ m!(i-1, j-1)) + sim (s1!i) (s2!j))]
         maxVal e1 e2 = if val e1 >= val e2 then GT else LT
 
