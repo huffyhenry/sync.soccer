@@ -1,32 +1,53 @@
 library(readr, quietly=TRUE)
 library(dplyr, quietly=TRUE)
 library(ggplot2, quietly=TRUE)
+
+# To install gganimate and ggsoccer:
+# > install.packages("devtools")
+# > devtools::install_github("thomasp85/gganimate")
+# > devtools::install_github("torvaney/ggsoccer")
 library(gganimate)
+library(ggsoccer)
 
 frames.file <- "../data/csv/frames.csv"
 events.file <- "../data/csv/events.csv"
 sync.file <- "../data/csv/sync.csv"
 
 data <- read_csv(frames.file) %>%
-  filter(team %in% c(0,1)) %>%   # Render players only
+  mutate(is.ball=(object == 0)) %>%
+  filter(team %in% c(0,1)) %>%   # Drop officials
   left_join(read_csv(sync.file)) %>%
-  mutate(event=ifelse(object==0, event, NA)) %>%
+  mutate( # Keep events matched to the ball rows only
+    event=ifelse(is.ball, event, NA),
+    is.event=!is.na(event)
+  ) %>%
   left_join(read_csv(events.file), by="event", suffix=c(".f", ".e")) %>%
-  mutate(team.f=factor(ifelse(object == 0, -1, team.f)))  # Give the ball its own "team"
+  mutate(
+    team.f=factor(ifelse(is.ball, -1, team.f)),  # Give the ball its own "team"
+    desc.f=sprintf("Implied Tracab clock: %.2fs", clock),
+    desc.e=ifelse(is.event, sprintf("%02d:%02d %s", minute, second, event_type), "")
+  ) %>%
+  # Repeat the frames that are aligned to an event 20 times to simulate a pause
+  mutate(weight=ifelse(is.event, 20, 1)) %>%
+  uncount(weight) %>%
+  arrange(clock, object) %>%
+  mutate(animation.clock=cumsum(as.numeric(is.ball)))
 
-# Scatter Tracab and Opta y coordinates to check for agreement
-ggplot(data, aes(x=y.e, y=y.f)) + geom_point()
-
-# Take only an intial segment of data for animation development
-data <- data %>% head(10000)
+# Take only an initial segment of data for animation development
+data <- data %>% head(50000)
 
 animation <- ggplot(data, aes(x=x.f, y=y.f)) +
-  geom_point(data=filter(data, team.f==-1), size=2) +
-  geom_point(data=filter(data, team.f!=-1), aes(color=team.f), size=3) +
-  geom_label(aes(x=x.e, y=y.e, label=type)) +
-  scale_color_manual(values=c("#6cabdd", "#034694")) +
-  transition_time(clock) +
+  geom_text(data=filter(data, is.ball), aes(x=-3500, y=3550, label=desc.f)) +
+  geom_text(aes(x=3500, y=3550, label=desc.e), colour='red') +
+  annotate_pitch(x_scale=105.0, y_scale=68.0, x_shift=-10500/2, y_shift=-6800/2) +
+  annotate("text", x=4200, y=-3200, label="sync.soccer", fontface="italic") +
+  geom_point(data=filter(data, is.ball), size=1.5) +
+  geom_point(data=filter(data, !is.ball), aes(color=team.f), size=3, alpha=0.75) +
+  geom_point(aes(x=x.e, y=y.e), colour="red", shape=4, size=4) +
+  scale_color_manual(values=c("#034694", "#6cabdd")) +
+  coord_cartesian(xlim=c(-5500, 5500), ylim=c(-3500, 3500)) +
+  transition_time(animation.clock) +
+  theme_pitch() +
   theme(legend.position="none")
 
-animate(animation, fps=20, duration=nrow(filter(data, object==0))/20)
-
+animate(animation, fps=5, nframes=nrow(filter(data, is.ball)), renderer=ffmpeg_renderer())
