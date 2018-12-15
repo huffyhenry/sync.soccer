@@ -29,7 +29,7 @@ locationScore scale e f =
     in logDensity Gaussian.standard (dist / scale)
 
 totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
-totalScore offset e f = (clockScore 1.0 offset e f)
+totalScore offset e f = (clockScore 1.0 offset e f) + (locationScore 100.0 e f)
 
 
 main :: IO ()
