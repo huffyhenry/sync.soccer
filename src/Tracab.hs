@@ -273,7 +273,7 @@ rightToLeftFirstHalf tbData =
     homeX = sumX homePositions
     awayX = sumX awayPositions
 
-frameMatrix :: Frame -> L 2 23
+frameMatrix :: Frame -> L 2 29
 frameMatrix frame =
     matrix allPositions
     where
@@ -281,7 +281,7 @@ frameMatrix frame =
     ballCoordinates = coordinates $ ballPosition frame
     -- TODO: This is quite obviously wrong, it will likely take some of the substitutes of the home team
     -- and leave off some of the actual players from the away team. The typing here is difficult.
-    allCoordinates = take 22 $ map coordinates $ Map.elems $ positions frame
+    allCoordinates = take 29 $ map coordinates $ Map.elems $ positions frame
     xpositions =
         (x ballCoordinates) : map x allCoordinates
     ypositions =
