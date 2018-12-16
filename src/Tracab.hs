@@ -1,4 +1,9 @@
+{-# LANGUAGE DataKinds #-}
+{- We need data kinds for the matrix types L 2 22 etc. -}
+
 module Tracab where
+
+
 
 import qualified Data.IntMap as Map
 import qualified Data.List.Split as Split
@@ -10,6 +15,9 @@ import Text.Printf (printf)
 import qualified XmlUtils
 import XmlUtils ( attrLookupStrict, attrLookup )
 import qualified XmlUtils as Xml
+import Numeric.LinearAlgebra.Static
+    ( L, matrix )
+
 
 
 -- Complete Tracab data
@@ -264,3 +272,17 @@ rightToLeftFirstHalf tbData =
     sumX positions = sum $ map (\p -> x $ coordinates p) positions
     homeX = sumX homePositions
     awayX = sumX awayPositions
+
+frameMatrix :: Frame -> L 2 23
+frameMatrix frame =
+    matrix allPositions
+    where
+    allPositions = map fromIntegral (xpositions ++ ypositions)
+    ballCoordinates = coordinates $ ballPosition frame
+    -- TODO: This is quite obviously wrong, it will likely take some of the substitutes of the home team
+    -- and leave off some of the actual players from the away team. The typing here is difficult.
+    allCoordinates = take 22 $ map coordinates $ Map.elems $ positions frame
+    xpositions =
+        (x ballCoordinates) : map x allCoordinates
+    ypositions =
+        (y ballCoordinates) : map y allCoordinates
