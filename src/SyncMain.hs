@@ -49,6 +49,9 @@ main = do
     let events2 = filter (\e -> F24.min e < 20) events
     let frames2 = take (25*60*25) frames
 
+    -- So if you want to do some smoothing using matrices for the frame data then
+    let frameMatrices = Tracab.translateFrames frames2
+
     -- The penalty for leaving frames unaligned needs to be small.
     -- Conversely, leaving events unaligned should be costly.
     -- Note that the score for a Match can be negative on the log-density scale
