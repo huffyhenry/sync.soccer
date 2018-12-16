@@ -11,24 +11,25 @@ import qualified NeedlemanWunsch as NW
 import qualified Csvs as CSV
 
 
-clockScore :: Double -> Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+clockScore :: Double -> Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
 clockScore scale offset e f =
     let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
         dist = abs $ seconds - (fromJust $ Tracab.clock f)
     in logDensity Gaussian.standard ((dist - offset) / scale)
 
-locationScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+locationScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
 locationScore scale e f =
     let eX = (Tracab.x . fromJust . F24.coordinates) e
         eY = (Tracab.y . fromJust . F24.coordinates) e
-        fX = (Tracab.x . Tracab.coordinates . Tracab.ballPosition) f
-        fY = (Tracab.y . Tracab.coordinates . Tracab.ballPosition) f
+        ballCoordinates = Tracab.coordinates $ Tracab.ball $ Tracab.positions f
+        fX = Tracab.x ballCoordinates
+        fY = Tracab.y ballCoordinates
         xDist = fromIntegral $ eX - fX
         yDist = fromIntegral $ eY - fY
         dist = sqrt $ xDist**2.0 + yDist**2.0
     in logDensity Gaussian.standard (dist / scale)
 
-totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
 totalScore offset e f = (clockScore 1.0 offset e f)
 
 

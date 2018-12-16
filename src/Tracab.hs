@@ -21,23 +21,28 @@ import Numeric.LinearAlgebra.Static
 
 
 -- Complete Tracab data
-type Tracab = (Metadata, Frames)
+type Tracab positions = (Metadata, Frames positions)
 
-metadata :: Tracab -> Metadata
+metadata :: Tracab positions -> Metadata
 metadata = fst
 
-frames :: Tracab -> Frames
+frames :: Tracab positions -> Frames positions
 frames = snd
 
-parseTracab :: String -> String -> IO Tracab
+parseTracab :: String -> String -> IO (Tracab Positions)
 parseTracab metafile datafile = do
     tracabMeta <- parseMetaFile metafile
     tracabData <- parseDataFile tracabMeta datafile
     return (tracabMeta, tracabData)
 
+data Positions = Positions {
+    agents :: [ Position ],
+    ball :: Position
+}
+
 data Coordinates = Coordinates {
-  x :: Int,
-  y :: Int
+    x :: Int,
+    y :: Int
 }
 
 -- The position information of a single player/ball in a single snapshot
@@ -48,19 +53,17 @@ data Position = Position{
     speed :: Float,
     mBallStatus :: Maybe BallStatus
 }
-type Positions = Map.IntMap Position
 
 data BallStatus = Alive | Dead
 -- A single complete snapshot of tracking data
-data Frame = Frame{
+data Frame positions = Frame{
     frameId :: Int,
-    positions :: Positions,
-    ballPosition :: Position,
+    positions :: positions,
     clock :: Maybe Double
     }
-type Frames = [Frame]
+type Frames positions = [Frame positions]
 
-instance Show Frame where
+instance Show (Frame pos) where
     show f =
         let formatClock :: Double -> String
             formatClock c = printf "%02.d:%02d.%03d" mins secs msec where
@@ -74,12 +77,11 @@ instance Show Frame where
         in base ++ extra
 
 -- The key method parsing a line of the Tracab data file into a Frame object
-parseFrame :: Metadata -> String -> Frame
+parseFrame :: Metadata -> String -> Frame Positions
 parseFrame meta inputLine =
   Frame
     { frameId = frameId
     , positions = positions
-    , ballPosition = parseBallPosition ballString
     , clock = clock
     }
   where
@@ -89,8 +91,11 @@ parseFrame meta inputLine =
 
   -- Assemble parsed data
   frameId = read dataLineIdStr
-  positions = foldl addPosition Map.empty (map parsePosition positionsStrings)
-  addPosition mapg posn = Map.insert (participantId posn) posn mapg
+  positions =
+    Positions
+        { agents = map parsePosition positionsStrings
+        , ball = parseBallPosition ballString
+        }
 
   -- Compute the implied timestamp of the frame in seconds from period start
   inPeriodClock p = let offset = frameId - (startFrame p)
@@ -106,7 +111,7 @@ parseFrame meta inputLine =
   parsePosition inputStr =
       Position
         { participantId = read idStr
-        , coordinates = Coordinates { x = read xStr, y = read yStr }
+        , coordinates = Coordinates { x = read xStr , y = read yStr }
         , mTeam = team
         , speed = read speedStr
         , mBallStatus = Nothing
@@ -125,7 +130,7 @@ parseFrame meta inputLine =
   parseBallPosition inputStr =
       Position
         { participantId = 0
-        , coordinates = Coordinates { x = read xStr, y = read yStr }
+        , coordinates = Coordinates { x = read xStr , y = read yStr }
         , mTeam = team
         , mBallStatus = ballStatus
         , speed = read speedStr
@@ -151,7 +156,7 @@ parseFrame meta inputLine =
 
 
 -- Parse the entire Tracab data file into a list of frames
-parseDataFile :: Metadata -> String -> IO Frames
+parseDataFile :: Metadata -> String -> IO (Frames Positions)
 parseDataFile meta filename =
   do
     handle <- openFile filename ReadMode
@@ -255,7 +260,7 @@ oppositionKind :: TeamKind -> TeamKind
 oppositionKind Home = Away
 oppositionKind Away = Home
 
-rightToLeftFirstHalf :: Frames -> TeamKind
+rightToLeftFirstHalf :: Frames Positions -> TeamKind
 rightToLeftFirstHalf tbData =
     case homeX > awayX of
         True ->
@@ -265,24 +270,32 @@ rightToLeftFirstHalf tbData =
     where
     -- Might be able to do better than this.
     kickOffFrame = head tbData
-    kickOffPositions = Map.elems $ positions kickOffFrame
+    kickOffPositions = agents $ positions kickOffFrame
     homePositions = filter (\p -> mTeam p == Just Home) kickOffPositions
     awayPositions = filter (\p -> mTeam p == Just Away) kickOffPositions
 
-    sumX positions = sum $ map (\p -> x $ coordinates p) positions
+    sumX positions = sum $ map (x . coordinates) positions
     homeX = sumX homePositions
     awayX = sumX awayPositions
 
-frameMatrix :: Frame -> L 2 29
+
+type MatrixPositions = L 2 30
+
+translateFrames :: Tracab Positions -> Tracab MatrixPositions
+translateFrames (metadata, frames) =
+    (metadata, map frameMatrix frames)
+
+frameMatrix :: Frame Positions -> Frame MatrixPositions
 frameMatrix frame =
-    matrix allPositions
+    frame { positions = matrix allPositions }
     where
     allPositions = map fromIntegral (xpositions ++ ypositions)
-    ballCoordinates = coordinates $ ballPosition frame
+    ballCoordinates = coordinates $ ball $ positions frame
+
     -- TODO: This is quite obviously wrong, it will likely take some of the substitutes of the home team
     -- and leave off some of the actual players from the away team. The typing here is difficult.
-    allCoordinates = take 29 $ map coordinates $ Map.elems $ positions frame
+    agentCoordinates = take 29 $ agents $ positions frame
     xpositions =
-        (x ballCoordinates) : map x allCoordinates
+        (x ballCoordinates) : map (x . coordinates) agentCoordinates
     ypositions =
-        (y ballCoordinates) : map y allCoordinates
+        (y ballCoordinates) : map (y . coordinates) agentCoordinates

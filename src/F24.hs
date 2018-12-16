@@ -49,7 +49,7 @@ data Event coordinates = Event {
     team_id :: Int,
     outcome :: Maybe Int,
     coordinates :: Maybe coordinates,
-    timestamp :: DateTime, -- FIXME Should be more granular timestamp type.
+    timestamp :: DateTime,
     last_modified :: DateTime,
     qs :: [Q]
 }
