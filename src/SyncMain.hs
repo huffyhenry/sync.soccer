@@ -51,6 +51,8 @@ main = do
 
     -- So if you want to do some smoothing using matrices for the frame data then
     let frameMatrices = Tracab.translateFrames frames2
+    -- If you want just a list of matrices then
+    let tracabMatrices = map Tracab.positions frameMatrices
 
     -- The penalty for leaving frames unaligned needs to be small.
     -- Conversely, leaving events unaligned should be costly.
