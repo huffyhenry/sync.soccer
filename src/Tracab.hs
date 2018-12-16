@@ -279,11 +279,21 @@ rightToLeftFirstHalf tbData =
     awayX = sumX awayPositions
 
 
+-- The type of matrix is "kinded" by the number of rows and columns. I've gone for 30,
+-- the tracab documentation states that the player positions are an array of *up to* 29
+-- so add one for the ball and we get 30. I'm not sure how consistent this data is, and if
+-- we might need to pad out a shorter array with 'nil values'. The nil for a player position is
+-- kind of non-trivial because of course the coordinates (0,0) is the center of the pitch, we probably
+-- want something on the outside of the tracking area.
 type MatrixPositions = L 2 30
 
-translateFrames :: Tracab Positions -> Tracab MatrixPositions
-translateFrames (metadata, frames) =
-    (metadata, map frameMatrix frames)
+translateTracabData :: Tracab Positions -> Tracab MatrixPositions
+translateTracabData (metadata, frames) =
+    (metadata, translateFrames frames)
+
+translateFrames :: Frames Positions -> Frames MatrixPositions
+translateFrames =
+    map frameMatrix
 
 frameMatrix :: Frame Positions -> Frame MatrixPositions
 frameMatrix frame =
@@ -292,8 +302,8 @@ frameMatrix frame =
     allPositions = map fromIntegral (xpositions ++ ypositions)
     ballCoordinates = coordinates $ ball $ positions frame
 
-    -- TODO: This is quite obviously wrong, it will likely take some of the substitutes of the home team
-    -- and leave off some of the actual players from the away team. The typing here is difficult.
+    -- TODO: This probably has to do some padding in the case that there are *fewer* than
+    -- 29 agent coordinates.
     agentCoordinates = take 29 $ agents $ positions frame
     xpositions =
         (x ballCoordinates) : map (x . coordinates) agentCoordinates
