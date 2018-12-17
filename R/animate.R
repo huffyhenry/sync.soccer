@@ -1,6 +1,7 @@
 library(readr, quietly=TRUE)
 library(dplyr, quietly=TRUE)
 library(ggplot2, quietly=TRUE)
+library(tidyr, quietly=TRUE)
 
 # To install gganimate and ggsoccer:
 # > install.packages("devtools")
