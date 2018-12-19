@@ -63,14 +63,16 @@ main = do
     f24Raw <- F24.loadGameFromFile (f24File opts)
     let flippedFirstHalf = Tracab.rightToLeftFirstHalf tbData
     let f24Data = F24.convertGameCoordinates flippedFirstHalf tbMeta f24Raw
-    let events = filter (\e -> F24.period_id e == 1) (F24.events f24Data)
-    let p1start = (Tracab.startFrame . head . Tracab.periods) tbMeta
-    let p1end = (Tracab.endFrame . head . Tracab.periods) tbMeta
-    let frames = filter (\f -> (Tracab.frameId f <= p1end) && (Tracab.frameId f >= p1start)) tbData
 
-    -- Take just the first ~20 minutes to stay under 16GB RAM for now.
-    let events2 = filter (\e -> F24.min e < 20) events
-    let frames2 = take (25*60*25) frames
+    -- Select first and second half events and frames
+    let events1 = filter (\e -> F24.period_id e == 1) (F24.events f24Data)
+    let events2 = filter (\e -> F24.period_id e == 2) (F24.events f24Data)
+    let p1start = (Tracab.startFrame . head . Tracab.periods) tbMeta
+    let p2start = (Tracab.startFrame . head . tail . Tracab.periods) tbMeta
+    let p1end = (Tracab.endFrame . head . Tracab.periods) tbMeta
+    let p2end = (Tracab.endFrame . head . tail . Tracab.periods) tbMeta
+    let frames1 = filter (\f -> (Tracab.frameId f <= p1end) && (Tracab.frameId f >= p1start)) tbData
+    let frames2 = filter (\f -> (Tracab.frameId f <= p2end) && (Tracab.frameId f >= p2start)) tbData
 
     -- The penalty for leaving frames unaligned needs to be small.
     -- Conversely, leaving events unaligned should be costly.
@@ -78,13 +80,8 @@ main = do
     let gapl = \f -> (-10.0)    -- Leaves a frame unaligned for p < exp(-10) = 4.5e-5
     let gapr = \e -> (-1000.0)
     let sim = if timeOnly opts then clockScore 1.0 0.0 else totalScore 0.0
-    let sync = NW.align events2 frames2 sim gapl gapr
-    putStrLn $ show sync
-    putStr $ (show $ length frames2) ++ " frames, "
-    putStr $ (show $ length events2) ++ " events, "
-    putStrLn $ "total score " ++ show (NW.alignmentScore sim gapl gapr sync) ++ "."
 
-    -- Write parsed data to CSVs for animation
-    CSV.frames2Csv frames2 "data/csv/frames.csv"
-    CSV.events2Csv events2 "data/csv/events.csv"
-    CSV.alignment2Csv sync (outputFile opts)
+    -- Align!
+    let sync1 = NW.align events1 frames1 sim gapl gapr
+    let sync2 = NW.align events2 frames2 sim gapl gapr
+    CSV.alignment2Csv (NW.joinAlignments sync1 sync2) (outputFile opts)
