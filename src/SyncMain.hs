@@ -38,8 +38,7 @@ data Options = Options {
     tcbMetaFile :: String,
     tcbDataFile :: String,
     f24File     :: String,
-    outputFile  :: String,
-    timeOnly    :: Bool
+    outputFile  :: String
 } deriving Show
 
 options :: Parser Options
@@ -48,7 +47,6 @@ options = Options
        <*> argument str (metavar "TRACAB-DATA")
        <*> argument str (metavar "F24")
        <*> argument str (metavar "OUTPUT")
-       <*> switch (long "time-only" <> short 't' <> help "Sync only by time")
 
 parseOptions :: IO Options
 parseOptions = let desc = "Synchronise Tracab and F24 data."
@@ -79,7 +77,7 @@ main = do
     -- Note that the score for a Match is negative on the log-density scale.
     let gapl = \f -> (-10.0)    -- Leaves a frame unaligned for p < exp(-10) = 4.5e-5
     let gapr = \e -> (-1000.0)
-    let sim = if timeOnly opts then clockScore 1.0 0.0 else totalScore 0.0
+    let sim = clockScore 1.0 0.0
 
     -- Align!
     let sync1 = NW.align events1 frames1 sim gapl gapr
