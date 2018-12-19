@@ -5,6 +5,8 @@ import Data.Maybe (fromJust)
 import System.Environment (getArgs)
 import Statistics.Distribution (logDensity)
 import Statistics.Distribution.Normal as Gaussian
+import Options.Applicative
+import Data.Semigroup ((<>))
 import qualified Tracab
 import qualified F24
 import qualified NeedlemanWunsch as NW
@@ -31,12 +33,34 @@ locationScore scale e f =
 totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
 totalScore offset e f = (clockScore 1.0 offset e f) + (locationScore 100.0 e f)
 
+-- Command line parsing machinery
+data Options = Options {
+    tcbMetaFile :: String,
+    tcbDataFile :: String,
+    f24File     :: String,
+    outputFile  :: String,
+    timeOnly    :: Bool
+} deriving Show
+
+options :: Parser Options
+options = Options
+       <$> argument str (metavar "TRACAB-META")
+       <*> argument str (metavar "TRACAB-DATA")
+       <*> argument str (metavar "F24")
+       <*> argument str (metavar "OUTPUT")
+       <*> switch (long "time-only" <> short 't' <> help "Sync only by time")
+
+parseOptions :: IO Options
+parseOptions = let desc = "Synchronise Tracab and F24 data."
+                   hdr = "Copyright (c) 2018 Allan Clark and Marek Kwiatkowski."
+               in execParser $ info (options <**> helper) (fullDesc <> progDesc desc <> header hdr)
 
 main :: IO ()
 main = do
-    tbMeta <- Tracab.parseMetaFile "data/tracab/metadata/803174_Man City-Chelsea_metadata.xml"
-    tbData <- Tracab.parseDataFile tbMeta "data/tracab/803174_Man City-Chelsea.dat"
-    f24Raw <- F24.loadGameFromFile "data/f24/f24-8-2015-803174-eventdetails.xml"
+    opts <- parseOptions
+    tbMeta <- Tracab.parseMetaFile (tcbMetaFile opts)
+    tbData <- Tracab.parseDataFile tbMeta (tcbDataFile opts)
+    f24Raw <- F24.loadGameFromFile (f24File opts)
     let flippedFirstHalf = Tracab.rightToLeftFirstHalf tbData
     let f24Data = F24.convertGameCoordinates flippedFirstHalf tbMeta f24Raw
     let events = filter (\e -> F24.period_id e == 1) (F24.events f24Data)
@@ -53,7 +77,7 @@ main = do
     -- Note that the score for a Match is negative on the log-density scale.
     let gapl = \f -> (-10.0)    -- Leaves a frame unaligned for p < exp(-10) = 4.5e-5
     let gapr = \e -> (-1000.0)
-    let sim = totalScore 0.0
+    let sim = if timeOnly opts then clockScore 1.0 0.0 else totalScore 0.0
     let sync = NW.align events2 frames2 sim gapl gapr
     putStrLn $ show sync
     putStr $ (show $ length frames2) ++ " frames, "
@@ -63,4 +87,4 @@ main = do
     -- Write parsed data to CSVs for animation
     CSV.frames2Csv frames2 "data/csv/frames.csv"
     CSV.events2Csv events2 "data/csv/events.csv"
-    CSV.alignment2Csv sync "data/csv/sync.csv"
+    CSV.alignment2Csv sync (outputFile opts)
