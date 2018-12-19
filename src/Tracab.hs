@@ -84,10 +84,11 @@ parseFrame meta inputLine =
   positions = foldl addPosition Map.empty (map parsePosition positionsStrings)
   addPosition mapg posn = Map.insert (participantId posn) posn mapg
 
-  -- Compute the implied timestamp of the frame in seconds from period start
+  -- Compute the implied timestamp of the frame in seconds from game start
   inPeriodClock p = let offset = frameId - (startFrame p)
                         fps = frameRateFps meta
-                    in (fromIntegral offset) / (fromIntegral fps)
+                        clockStart = if (periodId p) == 2 then 45.0*60.0 else 0.0
+                    in clockStart + (fromIntegral offset) / (fromIntegral fps)
   candidatePeriods = [p | p <- periods meta,
                           startFrame p <= frameId,
                           endFrame p >= frameId]
