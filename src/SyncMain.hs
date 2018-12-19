@@ -29,7 +29,7 @@ locationScore scale e f =
     in logDensity Gaussian.standard (dist / scale)
 
 totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
-totalScore offset e f = (clockScore 1.0 offset e f)
+totalScore offset e f = (clockScore 1.0 offset e f) + (locationScore 100.0 e f)
 
 
 main :: IO ()
@@ -50,9 +50,9 @@ main = do
 
     -- The penalty for leaving frames unaligned needs to be small.
     -- Conversely, leaving events unaligned should be costly.
-    -- Note that the score for a Match can be negative on the log-density scale
-    let gapl = -10.0    -- Leaves a frame unaligned for P < exp(-10) = 4.5e-5
-    let gapr = -1000.0
+    -- Note that the score for a Match is negative on the log-density scale.
+    let gapl = \f -> (-10.0)    -- Leaves a frame unaligned for p < exp(-10) = 4.5e-5
+    let gapr = \e -> (-1000.0)
     let sim = totalScore 0.0
     let sync = NW.align events2 frames2 sim gapl gapr
     putStrLn $ show sync
