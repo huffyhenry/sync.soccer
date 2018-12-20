@@ -170,9 +170,15 @@ convertGameCoordinates metaData frames game =
         ( Tracab.periodId period, flipped)
         where
         flipped =
-            Tracab.rightToLeftKickOff kickOffFrame
-        kickOffFrame =
-            head $ filter isKickOff frames
+            case filter isKickOff frames of
+                [] ->
+                    -- This obviously shouldn't happen but the map is strict and you
+                    -- may have incomplete data, for example you may be only analysing
+                    -- the second half, in which case you don't care about the first half
+                    -- and perhaps haven't provided the frames for the first half.
+                    Tracab.Away
+                kickOffFrame : _ ->
+                    Tracab.rightToLeftKickOff kickOffFrame
         kickOffFrameId = Tracab.startFrame period
         isKickOff frame =
             (Tracab.frameId frame) == kickOffFrameId
