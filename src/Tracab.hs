@@ -247,16 +247,14 @@ oppositionKind :: TeamKind -> TeamKind
 oppositionKind Home = Away
 oppositionKind Away = Home
 
-rightToLeftFirstHalf :: Frames -> TeamKind
-rightToLeftFirstHalf tbData =
+rightToLeftKickOff :: Frame -> TeamKind
+rightToLeftKickOff kickOffFrame =
     case homeX > awayX of
         True ->
             Home
         False ->
             Away
     where
-    -- Might be able to do better than this.
-    kickOffFrame = head tbData
     kickOffPositions = Map.elems $ positions kickOffFrame
     homePositions = filter (\p -> mTeam p == Just Home) kickOffPositions
     awayPositions = filter (\p -> mTeam p == Just Away) kickOffPositions

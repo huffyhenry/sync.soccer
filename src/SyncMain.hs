@@ -11,7 +11,7 @@ import qualified Tracab
 import qualified F24
 import qualified NeedlemanWunsch as NW
 import qualified Csvs as CSV
-
+import qualified Control.Monad as Monad
 
 clockScore :: Double -> Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
 clockScore scale offset e f =
@@ -61,8 +61,7 @@ main = do
     tbMeta <- Tracab.parseMetaFile (tcbMetaFile opts)
     tbData <- Tracab.parseDataFile tbMeta (tcbDataFile opts)
     f24Raw <- F24.loadGameFromFile (f24File opts)
-    let flippedFirstHalf = Tracab.rightToLeftFirstHalf tbData
-    let f24Data = F24.convertGameCoordinates flippedFirstHalf tbMeta f24Raw
+    let f24Data = F24.convertGameCoordinates tbMeta tbData f24Raw
     let events = filter (\e -> F24.period_id e == 1) (F24.events f24Data)
     let p1start = (Tracab.startFrame . head . Tracab.periods) tbMeta
     let p1end = (Tracab.endFrame . head . Tracab.periods) tbMeta
