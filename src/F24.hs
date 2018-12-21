@@ -159,13 +159,22 @@ isHomeTeam :: Game a -> Event b -> Bool
 isHomeTeam game event =
     (team_id event) == (home_team_id game)
 
-convertGameCoordinates :: Tracab.Metadata -> Tracab.Frames -> Game F24Coordinates -> Game Tracab.Coordinates
-convertGameCoordinates metaData frames game =
-    game { events = map convertEvent (events game) }
+
+
+
+getFlippedHalves :: Tracab.Metadata -> Tracab.Frames -> (Maybe Tracab.TeamKind, Maybe Tracab.TeamKind)
+getFlippedHalves metaData frames =
+    (Map.lookup 1 flippedMap, Map.lookup 2 flippedMap)
+    where
+    flippedMap = createFlippedTeamMapping metaData frames
+
+
+createFlippedTeamMapping :: Tracab.Metadata -> Tracab.Frames -> Map.Map Int Tracab.TeamKind
+createFlippedTeamMapping metaData frames =
+    Map.fromList $ map createKeyFlipped tracabPeriods
     where
     tracabPeriods = filter (\p -> (Tracab.startFrame p) /= (Tracab.endFrame p)) (Tracab.periods metaData)
 
-    flippedMap = Map.fromList $ map createKeyFlipped tracabPeriods
     createKeyFlipped period =
         ( Tracab.periodId period, flipped)
         where
@@ -183,6 +192,12 @@ convertGameCoordinates metaData frames game =
         isKickOff frame =
             (Tracab.frameId frame) == kickOffFrameId
 
+
+convertGameCoordinates :: Tracab.Metadata -> Tracab.Frames -> Game F24Coordinates -> Game Tracab.Coordinates
+convertGameCoordinates metaData frames game =
+    game { events = map convertEvent (events game) }
+    where
+    flippedMap = createFlippedTeamMapping metaData frames
     convertEvent event =
         event { coordinates = liftM convertCoordinates $ coordinates event }
         where

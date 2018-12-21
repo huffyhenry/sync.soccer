@@ -67,9 +67,10 @@ main = do
     let p1end = (Tracab.endFrame . head . Tracab.periods) tbMeta
     let frames = filter (\f -> (Tracab.frameId f <= p1end) && (Tracab.frameId f >= p1start)) tbData
 
-    -- Take just the first ~20 minutes to stay under 16GB RAM for now.
-    let events2 = filter (\e -> F24.min e < 20) events
-    let frames2 = take (25*60*25) frames
+    -- Take just the first ~X minutes to stay under 16GB RAM for now.
+    let minutes = 20
+    let events2 = filter (\e -> F24.min e < minutes) events
+    let frames2 = take (25*60*(minutes + 5)) frames
 
     -- The penalty for leaving frames unaligned needs to be small.
     -- Conversely, leaving events unaligned should be costly.
