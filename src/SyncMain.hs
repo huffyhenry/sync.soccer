@@ -13,24 +13,25 @@ import qualified NeedlemanWunsch as NW
 import qualified Csvs as CSV
 import qualified Control.Monad as Monad
 
-clockScore :: Double -> Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+clockScore :: Double -> Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
 clockScore scale offset e f =
     let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
         dist = abs $ seconds - (fromJust $ Tracab.clock f)
     in logDensity Gaussian.standard ((dist - offset) / scale)
 
-locationScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+locationScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
 locationScore scale e f =
     let eX = (Tracab.x . fromJust . F24.coordinates) e
         eY = (Tracab.y . fromJust . F24.coordinates) e
-        fX = (Tracab.x . Tracab.coordinates . Tracab.ballPosition) f
-        fY = (Tracab.y . Tracab.coordinates . Tracab.ballPosition) f
+        ballCoordinates = Tracab.coordinates $ Tracab.ball $ Tracab.positions f
+        fX = Tracab.x ballCoordinates
+        fY = Tracab.y ballCoordinates
         xDist = fromIntegral $ eX - fX
         yDist = fromIntegral $ eY - fY
         dist = sqrt $ xDist**2.0 + yDist**2.0
     in logDensity Gaussian.standard (dist / scale)
 
-totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
 totalScore offset e f = (clockScore 1.0 offset e f) + (locationScore 100.0 e f)
 
 -- Command line parsing machinery
@@ -71,6 +72,11 @@ main = do
     let minutes = 20
     let events2 = filter (\e -> F24.min e < minutes) events
     let frames2 = take (25*60*(minutes + 5)) frames
+
+    -- So if you want to do some smoothing using matrices for the frame data then
+    let frameMatrices = Tracab.translateFrames frames2
+    -- If you want just a list of matrices then
+    let tracabMatrices = map Tracab.positions frameMatrices
 
     -- The penalty for leaving frames unaligned needs to be small.
     -- Conversely, leaving events unaligned should be costly.

@@ -50,7 +50,7 @@ data Event coordinates = Event {
     team_id :: Int,
     outcome :: Maybe Int,
     coordinates :: Maybe coordinates,
-    timestamp :: DateTime, -- FIXME Should be more granular timestamp type.
+    timestamp :: DateTime,
     last_modified :: DateTime,
     qs :: [Q]
 }
@@ -162,14 +162,14 @@ isHomeTeam game event =
 
 
 
-getFlippedHalves :: Tracab.Metadata -> Tracab.Frames -> (Maybe Tracab.TeamKind, Maybe Tracab.TeamKind)
+getFlippedHalves :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> (Maybe Tracab.TeamKind, Maybe Tracab.TeamKind)
 getFlippedHalves metaData frames =
     (Map.lookup 1 flippedMap, Map.lookup 2 flippedMap)
     where
     flippedMap = createFlippedTeamMapping metaData frames
 
 
-createFlippedTeamMapping :: Tracab.Metadata -> Tracab.Frames -> Map.Map Int Tracab.TeamKind
+createFlippedTeamMapping :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> Map.Map Int Tracab.TeamKind
 createFlippedTeamMapping metaData frames =
     Map.fromList $ map createKeyFlipped tracabPeriods
     where
@@ -193,7 +193,7 @@ createFlippedTeamMapping metaData frames =
             (Tracab.frameId frame) == kickOffFrameId
 
 
-convertGameCoordinates :: Tracab.Metadata -> Tracab.Frames -> Game F24Coordinates -> Game Tracab.Coordinates
+convertGameCoordinates :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> Game F24Coordinates -> Game Tracab.Coordinates
 convertGameCoordinates metaData frames game =
     game { events = map convertEvent (events game) }
     where

@@ -31,7 +31,7 @@ showTeam team =
         Just Tcb.Away -> "0"
         Nothing -> "3"
 
-frames2Csv :: Tcb.Frames -> String -> IO ()
+frames2Csv :: Tcb.Frames Tcb.Positions -> String -> IO ()
 frames2Csv frames filepath = do
     let header = "x,y,object,team,clock,frame"
     let format = "%d,%d,%d,%s,%.3f,%d"
@@ -41,13 +41,13 @@ frames2Csv frames filepath = do
                                          (showTeam $ Tcb.mTeam p)
                                          (fromJust (Tcb.clock f))
                                          (Tcb.frameId f)
-    let meltFrame f = (f, Tcb.ballPosition f):[(f, pos) | pos <- elems (Tcb.positions f)]
+    let meltFrame f = (f, Tcb.ball $ Tcb.positions f):[(f, pos) | pos <- Tcb.agents $ Tcb.positions f]
     let melted = foldr (++) [] (map meltFrame frames)
     let records = map fp2record melted
     writeFile filepath (unlines (header:records))
 
 
-alignment2Csv :: NW.Alignment (F24.Event Tcb.Coordinates) Tcb.Frame -> String -> IO ()
+alignment2Csv :: NW.Alignment (F24.Event Tcb.Coordinates) (Tcb.Frame Tcb.Positions)-> String -> IO ()
 alignment2Csv (NW.Alignment pairs) filepath = do
     let header = "event,frame"
     let isMatch (NW.Match _ _) = True
