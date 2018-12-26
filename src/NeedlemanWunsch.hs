@@ -1,10 +1,21 @@
 module NeedlemanWunsch where
 
-import Data.Array
-import Data.List (maximumBy, intersperse)
+import Control.Monad (forM_)
+import qualified Data.Array as A
+import qualified Data.Array.ST as UM
+import qualified Data.Array.Unboxed as U
+import Data.List (intersperse, sortBy)
 
-data Pair a b = Start
-              | GapL b
+-- Unqualified infix indexing operations for boxed and unboxed arrays.
+-- Nb. writing (!) = A.! doesn't work.
+infixl 9 !
+m!i = m A.! i
+
+infixl 9 %
+m%i = m U.! i
+
+-- An Alignment is a list of gaps and matches.
+data Pair a b = GapL b
               | GapR a
               | Match a b
 
@@ -39,57 +50,63 @@ instance (Show a, Show b) => Show (Alignment a b) where
             desc = scan (0, 0) pairs
         in foldl (++) "" (intersperse "\n" (filter (\s -> s /= "") desc))
 
--- Compute the total alignment score based on the similarity function and gap penalties
+-- Compute the total alignment score
 alignmentScore :: (a -> b -> Double) -> (b -> Double) -> (a -> Double) -> Alignment a b -> Double
 alignmentScore sim gapl gapr (Alignment pairs) = sum (map value pairs) where
     value (GapL y) = gapl y
     value (GapR x) = gapr x
     value (Match x y) = sim x y
 
--- Pointer to the cell whose value contributed to the current one.
--- In contrast to classical N-W, we have unique pointers.
-data Source = Origin
-            | FromLeft
-            | FromTop
-            | FromDiag
 
--- Type of the N-W matrix entry: pointer to source cell and the value
-data Entry = Entry !Source !Double
-
-src :: Entry -> Source
-src (Entry s _) = s
-
-val :: Entry -> Double
-val (Entry _ v) = v
-
-
--- The Needleman-Wunsch dynamic programming algorithm
+-- The Needleman-Wunsch-inspired dynamic alignment algorithm.
 align :: [a] -> [b] -> (a -> b -> Double) -> (b -> Double) -> (a -> Double) -> Alignment a b
 align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2) []) where
-    -- Convert to 1-based arrays for easy indexing and fast random access
-    s1 = listArray (1, length stream1) stream1
-    s2 = listArray (1, length stream2) stream2
+    -- Convert data to 1-based arrays for easier indexing and fast random access
+    s1 = A.listArray (1, length stream1) stream1
+    s2 = A.listArray (1, length stream2) stream2
 
-    -- Fill in the N-W matrix
-    fill :: Int -> Int -> Entry
-    fill 0 0 = Entry Origin 0.0
-    fill 0 j = Entry FromLeft (gapl (s2!j) + val (fill 0 (j-1)))
-    fill i 0 = Entry FromTop (gapr (s1!i) + val (fill (i-1) 0))
-    fill i j = maximumBy maxVal scores where
-        scores = [Entry FromLeft ((val $ m!(i, j-1)) + gapl (s2!j)),
-                  Entry FromTop ((val $ m!(i-1, j)) + gapr (s1!i)),
-                  Entry FromDiag ((val $ m!(i-1, j-1)) + sim (s1!i) (s2!j))]
-        maxVal e1 e2 = if val e1 >= val e2 then GT else LT
+    -- Compute gap penalties once
+    g1 = U.listArray (1, length stream1) (map gapr stream1)  :: U.UArray Int Double
+    g2 = U.listArray (1, length stream2) (map gapl stream2)  :: U.UArray Int Double
 
-    -- Walk through the matrix and reconstruct the best alignment
+    -- Compute similarity scores once
+    simBounds = ((1, 1), (length s1, length s2))
+    sims :: U.UArray (Int, Int) Double
+    sims = U.listArray simBounds [sim (s1!i) (s2!j) | (i, j) <- U.range simBounds]
+
+    -- Create the main matrix. Unboxed mutable array is used: mutabiliy for
+    -- inductive definition, unboxedness for reduced memory footprint. O(m*n)
+    mbounds = ((0,0), (length s1, length s2))
+    m = UM.runSTUArray $ do
+        arr <- UM.newArray_ mbounds
+        let set = UM.writeArray arr
+        let get = UM.readArray arr
+        let fill (0, 0) = do set (0, 0) 0.0
+            fill (i, 0) = do top <- get (i-1, 0)
+                             set (i, 0) (top + (g1%i))
+            fill (0, j) = do left <- get (0, j-1)
+                             set (0, j) (left + (g2%j))
+            fill (i, j) = do top <- get (i-1, j)
+                             left <- get (i, j-1)
+                             diag <- get (i-1, j-1)
+                             let fromTop = top + (g1%i)
+                             let fromLeft = left + (g2%j)
+                             let fromDiag = diag + sims%(i, j)
+                             set (i, j) (maximum [fromTop, fromLeft, fromDiag])
+        forM_ (UM.range mbounds) fill
+        return arr
+
+    -- Walk through the matrix and reconstruct the best alignment. O(max(n, k))
+    -- Entries on the way are recomputed to avoid the need to keep cell pointers.
     walkback 0 0 complete = complete
+    walkback i 0 partial = walkback (i-1) 0 ((GapR (s1!i)):partial)
+    walkback 0 j partial = walkback 0 (j-1) ((GapL (s2!j)):partial)
     walkback i j partial = walkback i' j' (pair:partial) where
-        (i', j', pair) = case src $ m!(i, j) of
-            FromLeft -> (i, j-1, GapL $ s2!j)
-            FromTop  -> (i-1, j, GapR $ s1!i)
-            FromDiag -> (i-1, j-1, Match (s1!i) (s2!j))
-
-    -- The N-W matrix itself
-    m :: Array (Int, Int) Entry
-    m = listArray dims [fill i j | (i, j) <- range dims]
-    dims = ((0, 0), (length s1, length s2))
+        (i', j', pair) = (fst . head . reverse . (sortBy comp)) candidates where
+            comp = \x -> \y -> compare (snd x) (snd y)
+            fromTop = (m%(i-1, j)) + (g1%i)
+            fromLeft = (m%(i, j-1)) + (g2%j)
+            fromDiag = (m%(i-1, j-1)) + sims%(i, j)
+            candidates = [((i-1, j, GapR $ s1!i), fromTop),
+                          ((i, j-1, GapL $ s2!j), fromLeft),
+                          ((i-1, j-1, Match (s1!i) (s2!j)), fromDiag)]
