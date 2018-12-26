@@ -30,8 +30,14 @@ locationScore scale e f =
         dist = sqrt $ xDist**2.0 + yDist**2.0
     in logDensity Gaussian.standard (dist / scale)
 
+ballStatusScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+ballStatusScore scale _ f = case Tracab.mBallStatus $ Tracab.ballPosition f of
+                               Nothing -> 0.0
+                               Just Tracab.Alive -> scale
+                               Just Tracab.Dead -> (-scale)
+
 totalScore :: F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
-totalScore e f = (clockScore 1.0 e f) + (locationScore 100.0 e f)
+totalScore e f = (clockScore 1.0 e f) + (locationScore 100.0 e f) + (ballStatusScore 1.0 e f)
 
 -- Command line parsing machinery
 data Options = Options {
