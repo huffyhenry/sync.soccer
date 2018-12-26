@@ -13,11 +13,11 @@ import qualified NeedlemanWunsch as NW
 import qualified Csvs as CSV
 
 
-clockScore :: Double -> Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
-clockScore scale offset e f =
+clockScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+clockScore scale e f =
     let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
         dist = abs $ seconds - (fromJust $ Tracab.clock f)
-    in logDensity Gaussian.standard ((dist - offset) / scale)
+    in logDensity Gaussian.standard (dist / scale)
 
 locationScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
 locationScore scale e f =
@@ -30,8 +30,8 @@ locationScore scale e f =
         dist = sqrt $ xDist**2.0 + yDist**2.0
     in logDensity Gaussian.standard (dist / scale)
 
-totalScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
-totalScore offset e f = (clockScore 1.0 offset e f) + (locationScore 100.0 e f)
+totalScore :: F24.Event Tracab.Coordinates -> Tracab.Frame -> Double
+totalScore e f = (clockScore 1.0 e f) + (locationScore 100.0 e f)
 
 -- Command line parsing machinery
 data Options = Options {
@@ -77,7 +77,7 @@ main = do
     -- Note that the score for a Match is negative on the log-density scale.
     let gapl = \f -> (-10.0)    -- Leaves a frame unaligned for p < exp(-10) = 4.5e-5
     let gapr = \e -> (-1000.0)
-    let sim = if timeOnly opts then clockScore 1.0 0.0 else totalScore 0.0
+    let sim = if timeOnly opts then clockScore 1.0 else totalScore
     let sync = NW.align events2 frames2 sim gapl gapr
     putStrLn $ show sync
     putStr $ (show $ length frames2) ++ " frames, "
