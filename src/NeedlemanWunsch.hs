@@ -69,11 +69,6 @@ align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2
     g1 = U.listArray (1, length stream1) (map gapr stream1)  :: U.UArray Int Double
     g2 = U.listArray (1, length stream2) (map gapl stream2)  :: U.UArray Int Double
 
-    -- Compute similarity scores once
-    simBounds = ((1, 1), (length s1, length s2))
-    sims :: U.UArray (Int, Int) Double
-    sims = U.listArray simBounds [sim (s1!i) (s2!j) | (i, j) <- U.range simBounds]
-
     -- Create the main matrix. Unboxed mutable array is used: mutabiliy for
     -- inductive definition, unboxedness for reduced memory footprint. O(m*n)
     mbounds = ((0,0), (length s1, length s2))
@@ -91,7 +86,7 @@ align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2
                              diag <- get (i-1, j-1)
                              let fromTop = top + (g1%i)
                              let fromLeft = left + (g2%j)
-                             let fromDiag = diag + sims%(i, j)
+                             let fromDiag = diag + (sim (s1!i) (s2!j))
                              set (i, j) (maximum [fromTop, fromLeft, fromDiag])
         forM_ (UM.range mbounds) fill
         return arr
@@ -106,7 +101,7 @@ align stream1 stream2 sim gapl gapr = Alignment (walkback (length s1) (length s2
             comp = \x -> \y -> compare (snd x) (snd y)
             fromTop = (m%(i-1, j)) + (g1%i)
             fromLeft = (m%(i, j-1)) + (g2%j)
-            fromDiag = (m%(i-1, j-1)) + sims%(i, j)
+            fromDiag = (m%(i-1, j-1)) + (sim (s1!i) (s2!j))
             candidates = [((i-1, j, GapR $ s1!i), fromTop),
                           ((i, j-1, GapL $ s2!j), fromLeft),
                           ((i-1, j-1, Match (s1!i) (s2!j)), fromDiag)]
