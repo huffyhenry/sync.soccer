@@ -11,7 +11,7 @@ import Control.Monad (liftM)
 import Data.DateTime
 import Data.Maybe
 import Data.Typeable
-import XmlUtils ( attrLookupStrict, attrLookup )
+import XmlUtils ( attrLookupStrict, attrLookup, hasAttributeWithValue )
 import qualified XmlUtils as Xml
 
 data Game coordinates = Game {
@@ -328,3 +328,56 @@ eventTypeName event =
         65 -> "Contentious decision"
 
         unknown -> "Unknown: " ++ show unknown
+
+
+data Metadata = Metadata{
+    homeTeam :: TeamData,
+    awayTeam :: TeamData
+}
+
+data TeamData = TeamData {
+    players :: [PlayerData]
+}
+
+data PlayerData = PlayerData {
+    playerRef :: String,
+    formationPosition :: String,
+    shirtNumber :: Int
+}
+
+
+parseMetaFile :: String -> IO Metadata
+parseMetaFile filename = do
+    root <- Xml.loadXmlFromFile filename
+    return $ makeMetadata (head $ Xml.getAllChildren root)
+
+makeMetadata :: Element -> Metadata
+makeMetadata element =
+    Metadata
+      { homeTeam = parseTeamData homeTeamDataElement
+      , awayTeam = parseTeamData awayTeamDataElement
+      }
+    where
+    homeTeamDataElement =
+        head $ filter (hasAttributeWithValue "Side" "Home") allTeamData
+
+    awayTeamDataElement =
+        head $ filter (hasAttributeWithValue "Side" "Away") allTeamData
+
+    allTeamData =
+        Xml.getChildrenWithQName "TeamData" matchData
+        where
+        soccerFeed = head $ Xml.getChildrenWithQName "SoccerFeed" element
+        soccerDocument = head $ Xml.getChildrenWithQName "SoccerDocument" soccerFeed
+        matchData = head $ Xml.getChildrenWithQName "MatchData" soccerDocument
+
+    parseTeamData teamElement =
+        -- We might have to go through the 'PlayerLineUp' element.
+        TeamData { players = map parsePlayerData $ Xml.getChildrenWithQName "MatchPlayer" teamElement }
+
+    parsePlayerData playerElement =
+        PlayerData
+            { playerRef = Xml.attrLookupStrict playerElement id "PlayerRef"
+            , formationPosition = Xml.attrLookupStrict playerElement id "Position"
+            , shirtNumber = Xml.attrLookupStrict playerElement read "ShirtNumber"
+            }

@@ -68,3 +68,7 @@ qNameEquals name element =
 getChildrenWithQName :: String -> Element -> [ Element ]
 getChildrenWithQName name =
     getChildren (qNameEquals name)
+
+hasAttributeWithValue :: String -> String -> Element -> Bool
+hasAttributeWithValue name value element =
+    (Just value) == (attrLookup element id name)
