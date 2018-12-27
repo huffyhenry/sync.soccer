@@ -349,7 +349,7 @@ data PlayerData = PlayerData {
 parseMetaFile :: String -> IO Metadata
 parseMetaFile filename = do
     root <- Xml.loadXmlFromFile filename
-    return $ makeMetadata (head $ Xml.getAllChildren root)
+    return $ makeMetadata root
 
 makeMetadata :: Element -> Metadata
 makeMetadata element =
@@ -367,13 +367,14 @@ makeMetadata element =
     allTeamData =
         Xml.getChildrenWithQName "TeamData" matchData
         where
-        soccerFeed = head $ Xml.getChildrenWithQName "SoccerFeed" element
-        soccerDocument = head $ Xml.getChildrenWithQName "SoccerDocument" soccerFeed
+        soccerFeed = element
+        soccerDocument = last $ Xml.getChildrenWithQName "SoccerDocument" soccerFeed
         matchData = head $ Xml.getChildrenWithQName "MatchData" soccerDocument
 
     parseTeamData teamElement =
-        -- We might have to go through the 'PlayerLineUp' element.
-        TeamData { players = map parsePlayerData $ Xml.getChildrenWithQName "MatchPlayer" teamElement }
+        TeamData { players = map parsePlayerData $ Xml.getChildrenWithQName "MatchPlayer" lineupElement }
+        where
+        lineupElement = head $ Xml.getChildrenWithQName "PlayerLineUp" teamElement
 
     parsePlayerData playerElement =
         PlayerData
