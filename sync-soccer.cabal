@@ -29,6 +29,7 @@ executable sync-soccer
     , array
     , statistics
     , optparse-applicative
+    , parallel
 
 -- See https://stackoverflow.com/questions/32123475/profiling-builds-with-stack
 -- for how to invoke stack build and stack exec with profiling.

@@ -21,6 +21,9 @@ data Pair a b = GapL b
 
 data Alignment a b = Alignment [Pair a b]
 
+joinAlignments :: Alignment a b -> Alignment a b -> Alignment a b
+joinAlignments (Alignment leftPairs) (Alignment rightPairs) = Alignment (leftPairs ++ rightPairs)
+
 -- Print an Alignment line-by-line, summarising gaps.
 -- Works best if both a and b print as short one-liners.
 instance (Show a, Show b) => Show (Alignment a b) where

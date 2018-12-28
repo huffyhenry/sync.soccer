@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
+import Control.Parallel (par, pseq)
 import qualified Data.IntMap as Map
 import Data.Maybe (fromJust)
 import System.Environment (getArgs)
@@ -69,12 +70,24 @@ main = do
     let allEvents = F24.events f24Data
     let allFrames = tbData
     let (firstHalfEvents, firstHalfFrames) = getEventsAndFrames 1 (Just 5) tbMeta allEvents allFrames
+    let (secondHalfEvents, secondHalfFrames) = getEventsAndFrames 2 (Just 5) tbMeta allEvents allFrames
+    let scoring = if timeOnly opts then clockScore 1.0 0.0 else totalScore 0.0
+
+    let sync1 = alignEventsAndFrames scoring firstHalfEvents firstHalfFrames
+    let sync2 = alignEventsAndFrames scoring secondHalfEvents secondHalfFrames
     -- This stackoverflow question explains why we need do `a par b pseq a+b`.
     -- https://stackoverflow.com/questions/4576734/why-do-we-need-seq-or-pseq-with-par-in-haskell
+    -- Note: I'm not sure if this is actually enough, we may need to 'force' the evaluation of a list
+    -- see: http://book.realworldhaskell.org/read/concurrent-and-multicore-programming.html
+    -- in particular the 'force' function introduced for the parallelSort `parSort` function.
+    -- However, note that we might be better to use a 'Strategy' (see later in the same page).
+    -- In particular it might be that computing the 'NW.alignmentScore' for each of the two halves
+    -- forces the execution of it anyway, so we could something simple like:4
+    -- let score1 = NW.alignmentScore scoring gapl gapr sync1
+    -- let score2 = NW.alignmentScore scoring gapl gapr sync2
+    -- let overallScore = score1 `par` score2 `pseq` score1 + score2
+    let sync = sync1 `par` (sync2 `pseq` NW.joinAlignments sync1 sync2)
 
-
-    let scoring = if timeOnly opts then clockScore 1.0 0.0 else totalScore 0.0
-    let sync = alignEventsAndFrames scoring firstHalfEvents firstHalfFrames
     putStrLn $ show sync
     putStr $ (show $ length firstHalfEvents) ++ " frames, "
     putStr $ (show $ length firstHalfFrames) ++ " events, "
