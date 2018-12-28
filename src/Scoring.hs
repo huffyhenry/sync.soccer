@@ -1,23 +1,28 @@
 module Scoring where
 
+import qualified Data.Map.Strict as Map
 import qualified Data.List
 import qualified Tracab
 import qualified F24
 
-eventPlayerDistance :: F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Maybe Double
-eventPlayerDistance event frame =
+eventPlayerDistance :: F24.ShirtNumbers -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Maybe Double
+eventPlayerDistance shirtNumbers event frame =
     do
         playerId <- F24.player_id event
-        let isPlayer p = Tracab.participantId p == playerId
-        playerPosition <- Data.List.find isPlayer (Tracab.agents $ Tracab.positions frame)
-        return $ euclideanDistance playerPosition
+        shirtNumber <- Map.lookup playerId shirtNumbers
+        let isPlayer p = Tracab.participantId p == shirtNumber
+        let positions = Tracab.positions frame
+        playerPosition <- Data.List.find isPlayer $ Tracab.agents positions
+        let playerCoords = Tracab.coordinates playerPosition
+        let ballCoords = Tracab.coordinates $ Tracab.ball positions
+        return $ euclideanDistance playerCoords ballCoords
+
+euclideanDistance :: Tracab.Coordinates -> Tracab.Coordinates -> Double
+euclideanDistance object target =
+    sqrt $ fromIntegral sumSquareSides
     where
-    euclideanDistance playerPosition =
-        sqrt (fromIntegral $ (squareSide playerX ballX) + (squareSide playerY ballY))
-        where
-        squareSide p b = (p - b) ^ 2
-        ballX = Tracab.x ballCoords
-        ballY = Tracab.y ballCoords
-        playerX = Tracab.x $ Tracab.coordinates playerPosition
-        playerY = Tracab.y $ Tracab.coordinates playerPosition
-        ballCoords = Tracab.coordinates $ Tracab.ball $ Tracab.positions frame
+    sumSquareSides = xSquareSide + ySquareSide
+    xSquareSide = squareSide (Tracab.x object) (Tracab.x target)
+    ySquareSide = squareSide (Tracab.y object) (Tracab.y target)
+
+    squareSide p b = (p - b) ^ 2

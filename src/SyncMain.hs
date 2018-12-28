@@ -38,6 +38,7 @@ totalScore offset e f = (clockScore 1.0 offset e f) + (locationScore 100.0 e f)
 data Options = Options {
     tcbMetaFile :: String,
     tcbDataFile :: String,
+    f7File      :: String,
     f24File     :: String,
     outputFile  :: String,
     timeOnly    :: Bool
@@ -47,6 +48,7 @@ options :: Parser Options
 options = Options
        <$> argument str (metavar "TRACAB-META")
        <*> argument str (metavar "TRACAB-DATA")
+       <*> argument str (metavar "F7")
        <*> argument str (metavar "F24")
        <*> argument str (metavar "OUTPUT")
        <*> switch (long "time-only" <> short 't' <> help "Sync only by time")
@@ -61,6 +63,7 @@ main = do
     opts <- parseOptions
     tbMeta <- Tracab.parseMetaFile (tcbMetaFile opts)
     tbData <- Tracab.parseDataFile tbMeta (tcbDataFile opts)
+    f24Meta <- F24.parseMetaFile (f7File opts)
     f24Raw <- F24.loadGameFromFile (f24File opts)
     let f24Data = F24.convertGameCoordinates tbMeta tbData f24Raw
     let events = filter (\e -> F24.period_id e == 1) (F24.events f24Data)
