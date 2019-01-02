@@ -57,6 +57,10 @@ alignmentScore sim gapl gapr (Alignment pairs) = sum (map value pairs) where
     value (GapR x) = gapr x
     value (Match x y) = sim x y
 
+-- Glue two alignments, typically separate periods of the same game, together
+joinAlignments :: Alignment a b -> Alignment a b -> Alignment a b
+joinAlignments (Alignment pairs1) (Alignment pairs2) = Alignment (pairs1 ++ pairs2)
+
 
 -- The Needleman-Wunsch-inspired dynamic alignment algorithm.
 align :: [a] -> [b] -> (a -> b -> Double) -> (b -> Double) -> (a -> Double) -> Alignment a b

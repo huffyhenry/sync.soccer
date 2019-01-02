@@ -18,7 +18,8 @@ executable sync-soccer
   main-is:             SyncMain.hs
   other-modules:       Tracab, F24, NeedlemanWunsch, XmlUtils, Csvs
   default-language:    Haskell2010
-  ghc-options:         -O
+  ghc-options:         -O -fPIC
+  ld-options:          -static
   build-depends:
       base >= 4.7 && < 5
     , datetime
