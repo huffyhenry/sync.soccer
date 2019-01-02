@@ -30,6 +30,7 @@ executable sync-soccer
     , array
     , statistics
     , optparse-applicative
+    , hmatrix
 
 -- See https://stackoverflow.com/questions/32123475/profiling-builds-with-stack
 -- for how to invoke stack build and stack exec with profiling.
@@ -62,6 +63,7 @@ executable sync-soccer-parse
     , xml
     , bytestring
     , array
+    , hmatrix
 
 
 
@@ -78,6 +80,7 @@ executable visualise-tracab
     , xml
     , bytestring
     , datetime
+    , hmatrix
 
 executable visualise-opta
   hs-source-dirs:      src
@@ -92,3 +95,4 @@ executable visualise-opta
     , xml
     , bytestring
     , datetime
+    , hmatrix
