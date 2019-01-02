@@ -60,8 +60,7 @@ main = do
     tbMeta <- Tracab.parseMetaFile (tcbMetaFile opts)
     tbData <- Tracab.parseDataFile tbMeta (tcbDataFile opts)
     f24Raw <- F24.loadGameFromFile (f24File opts)
-    let flippedFirstHalf = Tracab.rightToLeftFirstHalf tbData
-    let f24Data = F24.convertGameCoordinates flippedFirstHalf tbMeta f24Raw
+    let f24Data = F24.convertGameCoordinates tbMeta tbData f24Raw
 
     -- Select first and second half events and frames
     let events1 = filter (\e -> F24.period_id e == 1) (F24.events f24Data)
