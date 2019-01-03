@@ -161,7 +161,11 @@ isHomeTeam :: Game a -> Event b -> Bool
 isHomeTeam game event =
     (team_id event) == (home_team_id game)
 
-
+eventTeam :: Game a -> Event b -> Maybe Tracab.TeamKind
+eventTeam game event
+    | isHomeTeam game event = Just Tracab.Home
+    | isAwayTeam game event = Just Tracab.Away
+    | otherwise = Nothing
 
 
 getFlippedHalves :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> (Maybe Tracab.TeamKind, Maybe Tracab.TeamKind)
