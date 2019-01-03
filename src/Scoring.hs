@@ -5,13 +5,12 @@ import qualified Data.List
 import qualified Tracab
 import qualified F24
 
-eventPlayerDistance :: F24.ShirtNumbers -> F24.Game Tracab.Coordinates -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Maybe Double
-eventPlayerDistance shirtNumbers game event frame =
+eventPlayerDistance :: F24.ShirtNumbers -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Maybe Double
+eventPlayerDistance shirtNumbers event frame =
     do
         playerId <- F24.player_id event
-        shirtNumber <- Map.lookup playerId shirtNumbers
-        let eventTeam = F24.eventTeam game event
-        let isPlayer p = Tracab.participantId p == shirtNumber && Tracab.mTeam p == eventTeam
+        (teamKind, shirtNumber) <- Map.lookup playerId shirtNumbers
+        let isPlayer p = Tracab.participantId p == shirtNumber && Tracab.mTeam p == Just teamKind
         let positions = Tracab.positions frame
         playerPosition <- Data.List.find isPlayer $ Tracab.agents positions
         let playerCoords = Tracab.coordinates playerPosition

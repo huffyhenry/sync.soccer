@@ -352,7 +352,7 @@ eventTypeName event =
 
 
 type ShirtNumber = Int
-type ShirtNumbers = Map.Map PlayerId ShirtNumber
+type ShirtNumbers = Map.Map PlayerId (Tracab.TeamKind, ShirtNumber)
 
 
 data Metadata = Metadata{
@@ -387,9 +387,9 @@ makeMetadata element =
       , shirtNumbers = shirtNumbers
       }
     where
-    shirtNumbers = Map.union (collectShirtNumbers homeTeam) (collectShirtNumbers awayTeam)
+    shirtNumbers = Map.union (collectShirtNumbers Tracab.Home homeTeam) (collectShirtNumbers Tracab.Away awayTeam)
 
-    collectShirtNumbers teamData =
+    collectShirtNumbers teamKind teamData =
         Map.fromList $ map createPair (players teamData)
         where
         createPair playerData =
@@ -399,7 +399,7 @@ makeMetadata element =
             -- This player_id part we map to the shirt number, since this should correspond with the shirt-number used in the Tracab file.
             -- So basically here, we are going from the above MatchPlayer element to `(167040, 1)`.
             ( read $ drop 1 $ playerRef playerData
-            , shirtNumber playerData
+            , (teamKind, shirtNumber playerData)
             )
 
 
