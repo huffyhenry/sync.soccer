@@ -13,17 +13,17 @@ main
     frames <- Tracab.parseDataFile meta datafile
     animate (InWindow "Tracab" (800, 600) (5,5)) (greyN 0.2) (frame frames)
 
-frame :: Tracab.Frames -> Float -> Picture
+frame :: Tracab.Frames Tracab.Positions -> Float -> Picture
 frame dataLines time =
     case currentTime >= length dataLines of
         True -> endGame
         False -> Pictures pictures
     where
         pictures =  ballPicture : playerPictures
-        ballPicture = renderBall $ Tracab.ballPosition currentLine
+        ballPicture = renderBall $ Tracab.ball $ Tracab.positions currentLine
         playerPictures =
             map renderPlayer players
-        players = Map.elems $ Tracab.positions currentLine
+        players = Tracab.agents $ Tracab.positions currentLine
         currentLine = dataLines !! currentTime
 
         currentTime :: Int
