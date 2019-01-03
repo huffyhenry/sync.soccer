@@ -21,9 +21,6 @@ data Pair a b = GapL b
 
 data Alignment a b = Alignment [Pair a b]
 
-joinAlignments :: Alignment a b -> Alignment a b -> Alignment a b
-joinAlignments (Alignment leftPairs) (Alignment rightPairs) = Alignment (leftPairs ++ rightPairs)
-
 -- Print an Alignment line-by-line, summarising gaps.
 -- Works best if both a and b print as short one-liners.
 instance (Show a, Show b) => Show (Alignment a b) where
@@ -59,6 +56,10 @@ alignmentScore sim gapl gapr (Alignment pairs) = sum (map value pairs) where
     value (GapL y) = gapl y
     value (GapR x) = gapr x
     value (Match x y) = sim x y
+
+-- Glue two alignments, typically separate periods of the same game, together
+joinAlignments :: Alignment a b -> Alignment a b -> Alignment a b
+joinAlignments (Alignment pairs1) (Alignment pairs2) = Alignment (pairs1 ++ pairs2)
 
 
 -- The Needleman-Wunsch-inspired dynamic alignment algorithm.
