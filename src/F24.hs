@@ -39,6 +39,8 @@ instance Show (Game a) where
     show g = show (gid g) ++ " " ++ home_team_name g ++ " vs " ++ away_team_name g ++ " on " ++ show (game_date g)
 
 
+type PlayerId = Int
+
 data Event coordinates = Event {
     eid :: Int,
     event_id :: Int,
@@ -46,7 +48,7 @@ data Event coordinates = Event {
     period_id :: Int,
     min :: Int,
     sec :: Int,
-    player_id :: Maybe Int,
+    player_id :: Maybe PlayerId,
     team_id :: Int,
     outcome :: Maybe Int,
     coordinates :: Maybe coordinates,
@@ -159,7 +161,11 @@ isHomeTeam :: Game a -> Event b -> Bool
 isHomeTeam game event =
     (team_id event) == (home_team_id game)
 
-
+eventTeam :: Game a -> Event b -> Maybe Tracab.TeamKind
+eventTeam game event
+    | isHomeTeam game event = Just Tracab.Home
+    | isAwayTeam game event = Just Tracab.Away
+    | otherwise = Nothing
 
 
 getFlippedHalves :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> (Maybe Tracab.TeamKind, Maybe Tracab.TeamKind)
@@ -345,19 +351,26 @@ eventTypeName event =
         unknown -> "Unknown: " ++ show unknown
 
 
+type ShirtNumber = Int
+type ShirtNumbers = Map.Map PlayerId (Tracab.TeamKind, ShirtNumber)
+
+
 data Metadata = Metadata{
     homeTeam :: TeamData,
-    awayTeam :: TeamData
+    awayTeam :: TeamData,
+    shirtNumbers :: ShirtNumbers
 }
 
 data TeamData = TeamData {
     players :: [PlayerData]
 }
 
+
+
 data PlayerData = PlayerData {
     playerRef :: String,
     formationPosition :: String,
-    shirtNumber :: Int
+    shirtNumber :: ShirtNumber
 }
 
 
@@ -371,8 +384,27 @@ makeMetadata element =
     Metadata
       { homeTeam = parseTeamData homeTeamDataElement
       , awayTeam = parseTeamData awayTeamDataElement
+      , shirtNumbers = shirtNumbers
       }
     where
+    shirtNumbers = Map.union (collectShirtNumbers Tracab.Home homeTeam) (collectShirtNumbers Tracab.Away awayTeam)
+
+    collectShirtNumbers teamKind teamData =
+        Map.fromList $ map createPair (players teamData)
+        where
+        createPair playerData =
+            -- Player data looks like: <MatchPlayer Formation_Place="1" PlayerRef="p167040" Position="Goalkeeper" ShirtNumber="1" Status="Start" />
+            -- So for some reason the playerRef is in the format `p<player_id>` where the `player_id` part matches up with those given in the Event data
+            -- in the actual f24 file. So to parse it we just drop the 'p' and read the rest as an integer.
+            -- This player_id part we map to the shirt number, since this should correspond with the shirt-number used in the Tracab file.
+            -- So basically here, we are going from the above MatchPlayer element to `(167040, 1)`.
+            ( read $ drop 1 $ playerRef playerData
+            , (teamKind, shirtNumber playerData)
+            )
+
+
+    homeTeam = parseTeamData homeTeamDataElement
+    awayTeam = parseTeamData awayTeamDataElement
     homeTeamDataElement =
         head $ filter (hasAttributeWithValue "Side" "Home") allTeamData
 
