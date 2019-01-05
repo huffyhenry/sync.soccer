@@ -17,13 +17,6 @@ https://docs.haskellstack.org/en/stable/README/
 stack build
 ```
 
-# Visualise tracab
-
-For this you will need the 'gloss' package which in turn relies on opengl.
-
-```
-stack build && stack exec visualise-tracab truncated-data/tracab/803174_ManCity-Chelsea.dat
-````
 
 # Beginnings of a synchronisation program
 
@@ -40,11 +33,3 @@ stack exec sync-soccer f24filename tracabfilename
 ```
 
 It currently just prints out how many lines/events there are. Even this, will take a while.
-
-# Visualise f24
-
-
-```
-stack build
-stack exec visualise-opta data/tracab/metadata/803174_Man\ City-Chelsea_metadata.xml data/f24/f24-8-2015-803174-eventdetails.xml
-```
