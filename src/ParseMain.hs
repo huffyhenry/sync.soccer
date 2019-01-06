@@ -1,6 +1,6 @@
 import qualified Data.IntMap as Map
 import System.Environment (getArgs)
-import qualified Tracab
+import qualified Tracab as Tcb
 import qualified F24
 
 main :: IO ()
@@ -11,15 +11,15 @@ main =
       game <- F24.loadGameFromFile f24Filename
       putStrLn $ displayShirtNumbers f24Meta
 
-      (tcMeta, tcData) <- Tracab.parseTracab tracabMetaFilename tracabDataFilename
+      (tcMeta, tcData) <- Tcb.parseTracab tracabMetaFilename tracabDataFilename
       putStrLn ("There are " ++ (show $ length (F24.events game)) ++ " events.")
       putStrLn ("There are " ++ (show $ length tcData) ++ " tracab data lines")
       -- This tests the parser by forcing us to evaluate the entirety of each frame.
-      let maxFrameInt = maximum $ map Tracab.frameInteger tcData
+      let maxFrameInt = maximum $ map Tcb.frameInteger tcData
       putStrLn ("The maximum frame int (for parser testing) is: " ++ show maxFrameInt)
       putStrLn $ show tcMeta
       -- This tests the parser by forcing us to evaluate the entirety of each frame.
-      let maxFrameInt = maximum $ map Tracab.frameInteger tcData
+      let maxFrameInt = maximum $ map Tcb.frameInteger tcData
       putStrLn ("The maximum frame int (for parser testing) is: " ++ show maxFrameInt)
 
 

@@ -3,21 +3,16 @@
 
 module Tracab where
 
-
-
 import qualified Data.IntMap as Map
 import qualified Data.List.Split as Split
 import Data.Maybe (maybe, Maybe, listToMaybe)
 import System.IO  (openFile, hGetContents, hClose, IOMode(ReadMode))
 import System.Environment (getArgs)
-import Text.XML.Light.Types ( Element )
+import Text.XML.Light.Types (Element)
 import Text.Printf (printf)
-import qualified XmlUtils
-import XmlUtils ( attrLookupStrict, attrLookup )
+import XmlUtils (attrLookupStrict, attrLookup)
 import qualified XmlUtils as Xml
-import Numeric.LinearAlgebra.Static
-    ( L, matrix )
-
+import Numeric.LinearAlgebra.Static (L, matrix)
 
 
 -- Complete Tracab data

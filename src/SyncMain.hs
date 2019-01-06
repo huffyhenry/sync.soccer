@@ -1,44 +1,39 @@
-{-# LANGUAGE FlexibleInstances #-}
-
-import qualified Data.IntMap as Map
 import Data.Maybe (fromJust)
-import System.Environment (getArgs)
 import Statistics.Distribution (logDensity)
 import Statistics.Distribution.Normal as Gaussian
 import Options.Applicative
 import Data.Semigroup ((<>))
-import qualified Tracab
+import qualified Tracab as Tcb
 import qualified F24
 import qualified NeedlemanWunsch as NW
 import qualified Csvs as CSV
-import qualified Control.Monad as Monad
 
 
-clockScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
+clockScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
 clockScore scale e f =
     let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
-        dist = abs $ seconds - (fromJust $ Tracab.clock f)
+        dist = abs $ seconds - (fromJust $ Tcb.clock f)
     in logDensity Gaussian.standard (dist / scale)
 
-locationScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
+locationScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
 locationScore scale e f =
-    let eX = (Tracab.x . fromJust . F24.coordinates) e
-        eY = (Tracab.y . fromJust . F24.coordinates) e
-        ballCoordinates = Tracab.coordinates $ Tracab.ball $ Tracab.positions f
-        fX = Tracab.x ballCoordinates
-        fY = Tracab.y ballCoordinates
+    let eX = (Tcb.x . fromJust . F24.coordinates) e
+        eY = (Tcb.y . fromJust . F24.coordinates) e
+        ballCoordinates = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
+        fX = Tcb.x ballCoordinates
+        fY = Tcb.y ballCoordinates
         xDist = fromIntegral $ eX - fX
         yDist = fromIntegral $ eY - fY
         dist = sqrt $ xDist**2.0 + yDist**2.0
     in logDensity Gaussian.standard (dist / scale)
 
-ballStatusScore :: Double -> F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
-ballStatusScore scale _ f = case Tracab.mBallStatus $ Tracab.ball $ Tracab.positions f of
-                               Nothing -> 0.0
-                               Just Tracab.Alive -> scale
-                               Just Tracab.Dead -> (-scale)
+ballStatusScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+ballStatusScore scale _ f = case Tcb.mBallStatus $ Tcb.ball $ Tcb.positions f of
+                                 Nothing -> 0.0
+                                 Just Tcb.Alive -> scale
+                                 Just Tcb.Dead -> (-scale)
 
-totalScore :: F24.Event Tracab.Coordinates -> Tracab.Frame Tracab.Positions -> Double
+totalScore :: F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
 totalScore e f = (clockScore 1.0 e f) + (locationScore 100.0 e f) + (ballStatusScore 1.0 e f)
 
 -- Command line parsing machinery
@@ -68,8 +63,8 @@ parseOptions = let desc = "Synchronise Tracab and F24 data."
 main :: IO ()
 main = do
     opts <- parseOptions
-    tbMeta <- Tracab.parseMetaFile (tcbMetaFile opts)
-    tbData <- Tracab.parseDataFile tbMeta (tcbDataFile opts)
+    tbMeta <- Tcb.parseMetaFile (tcbMetaFile opts)
+    tbData <- Tcb.parseDataFile tbMeta (tcbDataFile opts)
     f24Meta <- F24.parseMetaFile (f7File opts)
     f24Raw <- F24.loadGameFromFile (f24File opts)
     let f24Data = F24.convertGameCoordinates tbMeta tbData f24Raw
@@ -78,17 +73,17 @@ main = do
     let events1 = filter (\e -> F24.period_id e == 1) (F24.events f24Data)
     let events2 = filter (\e -> F24.period_id e == 2) (F24.events f24Data)
 
-    let p1start = (Tracab.startFrame . head . Tracab.periods) tbMeta
-    let p2start = (Tracab.startFrame . head . tail . Tracab.periods) tbMeta
-    let p1end = (Tracab.endFrame . head . Tracab.periods) tbMeta
-    let p2end = (Tracab.endFrame . head . tail . Tracab.periods) tbMeta
-    let frames1 = filter (\f -> (Tracab.frameId f <= p1end) && (Tracab.frameId f >= p1start)) tbData
-    let frames2 = filter (\f -> (Tracab.frameId f <= p2end) && (Tracab.frameId f >= p2start)) tbData
+    let p1start = (Tcb.startFrame . head . Tcb.periods) tbMeta
+    let p2start = (Tcb.startFrame . head . tail . Tcb.periods) tbMeta
+    let p1end = (Tcb.endFrame . head . Tcb.periods) tbMeta
+    let p2end = (Tcb.endFrame . head . tail . Tcb.periods) tbMeta
+    let frames1 = filter (\f -> (Tcb.frameId f <= p1end) && (Tcb.frameId f >= p1start)) tbData
+    let frames2 = filter (\f -> (Tcb.frameId f <= p2end) && (Tcb.frameId f >= p2start)) tbData
 
     -- So if you want to do some smoothing using matrices for the frame data then
-    let frameMatrices = Tracab.translateFrames frames2
+    let frameMatrices = Tcb.translateFrames frames2
     -- If you want just a list of matrices then
-    let tracabMatrices = map Tracab.positions frameMatrices
+    let tracabMatrices = map Tcb.positions frameMatrices
 
     -- The penalty for leaving frames unaligned needs to be small.
     -- Conversely, leaving events unaligned should be costly.
