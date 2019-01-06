@@ -1,4 +1,9 @@
+{-# LANGUAGE DataKinds #-}
+{- We need data kinds for the matrix types L 2 22 etc. -}
+
 module Tracab where
+
+
 
 import qualified Data.IntMap as Map
 import qualified Data.List.Split as Split
@@ -10,26 +15,34 @@ import Text.Printf (printf)
 import qualified XmlUtils
 import XmlUtils ( attrLookupStrict, attrLookup )
 import qualified XmlUtils as Xml
+import Numeric.LinearAlgebra.Static
+    ( L, matrix )
+
 
 
 -- Complete Tracab data
-type Tracab = (Metadata, Frames)
+type Tracab positions = (Metadata, Frames positions)
 
-metadata :: Tracab -> Metadata
+metadata :: Tracab positions -> Metadata
 metadata = fst
 
-frames :: Tracab -> Frames
+frames :: Tracab positions -> Frames positions
 frames = snd
 
-parseTracab :: String -> String -> IO Tracab
+parseTracab :: String -> String -> IO (Tracab Positions)
 parseTracab metafile datafile = do
     tracabMeta <- parseMetaFile metafile
     tracabData <- parseDataFile tracabMeta datafile
     return (tracabMeta, tracabData)
 
+data Positions = Positions {
+    agents :: [ Position ],
+    ball :: Position
+}
+
 data Coordinates = Coordinates {
-  x :: Int,
-  y :: Int
+    x :: Int,
+    y :: Int
 }
 
 -- The position information of a single player/ball in a single snapshot
@@ -40,19 +53,67 @@ data Position = Position{
     speed :: Float,
     mBallStatus :: Maybe BallStatus
 }
-type Positions = Map.IntMap Position
 
 data BallStatus = Alive | Dead
 -- A single complete snapshot of tracking data
-data Frame = Frame{
+data Frame positions = Frame{
     frameId :: Int,
-    positions :: Positions,
-    ballPosition :: Position,
+    positions :: positions,
     clock :: Maybe Double
     }
-type Frames = [Frame]
+type Frames positions = [Frame positions]
 
-instance Show Frame where
+{-
+    This is really just a dummy function to convert the entirety of a parsed frame,
+    including the positions, into a single integer. The trick here is to make sure that
+    we utilise every single part of the frame, this forces evaluation of the parsed frame
+    and hence any parser errors to come to light.
+-}
+frameInteger :: Frame Positions -> Int
+frameInteger frame =
+    sum
+        [ frameId frame
+        , clockInt
+        , sum $ map positionInt (agents framePositions)
+        , positionInt $ ball framePositions
+        ]
+    where
+    framePositions = positions frame
+    clockInt =
+        case clock frame of
+            Nothing ->
+                0
+            Just x ->
+                round x
+    positionInt :: Position -> Int
+    positionInt position =
+        sum
+            [ participantId position
+            , x $ coordinates position
+            , y $ coordinates position
+            , round $ speed position
+            , teamInt
+            , ballInt
+            ]
+        where
+        teamInt =
+            case mTeam position of
+                Nothing ->
+                    0
+                Just Home ->
+                    1
+                Just Away ->
+                    2
+        ballInt =
+            case mBallStatus position of
+                Nothing ->
+                    0
+                Just Alive ->
+                    1
+                Just Dead ->
+                    2
+
+instance Show (Frame pos) where
     show f =
         let formatClock :: Double -> String
             formatClock c = printf "%02.d:%02d.%03d" mins secs msec where
@@ -66,12 +127,11 @@ instance Show Frame where
         in base ++ extra
 
 -- The key method parsing a line of the Tracab data file into a Frame object
-parseFrame :: Metadata -> String -> Frame
+parseFrame :: Metadata -> String -> Frame Positions
 parseFrame meta inputLine =
   Frame
     { frameId = frameId
     , positions = positions
-    , ballPosition = parseBallPosition ballString
     , clock = clock
     }
   where
@@ -81,13 +141,17 @@ parseFrame meta inputLine =
 
   -- Assemble parsed data
   frameId = read dataLineIdStr
-  positions = foldl addPosition Map.empty (map parsePosition positionsStrings)
-  addPosition mapg posn = Map.insert (participantId posn) posn mapg
+  positions =
+    Positions
+        { agents = map parsePosition positionsStrings
+        , ball = parseBallPosition ballString
+        }
 
-  -- Compute the implied timestamp of the frame in seconds from period start
+  -- Compute the implied timestamp of the frame in seconds from game start
   inPeriodClock p = let offset = frameId - (startFrame p)
                         fps = frameRateFps meta
-                    in (fromIntegral offset) / (fromIntegral fps)
+                        clockStart = if (periodId p) == 2 then 45.0*60.0 else 0.0
+                    in clockStart + (fromIntegral offset) / (fromIntegral fps)
   candidatePeriods = [p | p <- periods meta,
                           startFrame p <= frameId,
                           endFrame p >= frameId]
@@ -98,7 +162,7 @@ parseFrame meta inputLine =
   parsePosition inputStr =
       Position
         { participantId = read idStr
-        , coordinates = Coordinates { x = read xStr, y = read yStr }
+        , coordinates = Coordinates { x = read xStr , y = read yStr }
         , mTeam = team
         , speed = read speedStr
         , mBallStatus = Nothing
@@ -117,7 +181,7 @@ parseFrame meta inputLine =
   parseBallPosition inputStr =
       Position
         { participantId = 0
-        , coordinates = Coordinates { x = read xStr, y = read yStr }
+        , coordinates = Coordinates { x = read xStr , y = read yStr }
         , mTeam = team
         , mBallStatus = ballStatus
         , speed = read speedStr
@@ -143,7 +207,7 @@ parseFrame meta inputLine =
 
 
 -- Parse the entire Tracab data file into a list of frames
-parseDataFile :: Metadata -> String -> IO Frames
+parseDataFile :: Metadata -> String -> IO (Frames Positions)
 parseDataFile meta filename =
   do
     handle <- openFile filename ReadMode
@@ -247,8 +311,8 @@ oppositionKind :: TeamKind -> TeamKind
 oppositionKind Home = Away
 oppositionKind Away = Home
 
-rightToLeftFirstHalf :: Frames -> TeamKind
-rightToLeftFirstHalf tbData =
+rightToLeftKickOff :: Frame Positions -> TeamKind
+rightToLeftKickOff kickOffFrame =
     case homeX > awayX of
         True ->
             Home
@@ -256,11 +320,42 @@ rightToLeftFirstHalf tbData =
             Away
     where
     -- Might be able to do better than this.
-    kickOffFrame = head tbData
-    kickOffPositions = Map.elems $ positions kickOffFrame
+    kickOffPositions = agents $ positions kickOffFrame
     homePositions = filter (\p -> mTeam p == Just Home) kickOffPositions
     awayPositions = filter (\p -> mTeam p == Just Away) kickOffPositions
 
-    sumX positions = sum $ map (\p -> x $ coordinates p) positions
+    sumX positions = sum $ map (x . coordinates) positions
     homeX = sumX homePositions
     awayX = sumX awayPositions
+
+
+-- The type of matrix is "kinded" by the number of rows and columns. I've gone for 30,
+-- the tracab documentation states that the player positions are an array of *up to* 29
+-- so add one for the ball and we get 30. I'm not sure how consistent this data is, and if
+-- we might need to pad out a shorter array with 'nil values'. The nil for a player position is
+-- kind of non-trivial because of course the coordinates (0,0) is the center of the pitch, we probably
+-- want something on the outside of the tracking area.
+type MatrixPositions = L 2 30
+
+translateTracabData :: Tracab Positions -> Tracab MatrixPositions
+translateTracabData (metadata, frames) =
+    (metadata, translateFrames frames)
+
+translateFrames :: Frames Positions -> Frames MatrixPositions
+translateFrames =
+    map frameMatrix
+
+frameMatrix :: Frame Positions -> Frame MatrixPositions
+frameMatrix frame =
+    frame { positions = matrix allPositions }
+    where
+    allPositions = map fromIntegral (xpositions ++ ypositions)
+    ballCoordinates = coordinates $ ball $ positions frame
+
+    -- TODO: This probably has to do some padding in the case that there are *fewer* than
+    -- 29 agent coordinates.
+    agentCoordinates = take 29 $ agents $ positions frame
+    xpositions =
+        (x ballCoordinates) : map (x . coordinates) agentCoordinates
+    ypositions =
+        (y ballCoordinates) : map (y . coordinates) agentCoordinates

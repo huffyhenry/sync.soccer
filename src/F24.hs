@@ -1,5 +1,6 @@
 module F24 where
 
+import qualified Data.Map.Strict as Map
 import qualified Tracab
 import Prelude hiding (min)
 import qualified Data.ByteString as BS
@@ -11,7 +12,7 @@ import Control.Monad (liftM)
 import Data.DateTime
 import Data.Maybe
 import Data.Typeable
-import XmlUtils ( attrLookupStrict, attrLookup )
+import XmlUtils ( attrLookupStrict, attrLookup, hasAttributeWithValue )
 import qualified XmlUtils as Xml
 
 data Game coordinates = Game {
@@ -38,6 +39,8 @@ instance Show (Game a) where
     show g = show (gid g) ++ " " ++ home_team_name g ++ " vs " ++ away_team_name g ++ " on " ++ show (game_date g)
 
 
+type PlayerId = Int
+
 data Event coordinates = Event {
     eid :: Int,
     event_id :: Int,
@@ -45,11 +48,11 @@ data Event coordinates = Event {
     period_id :: Int,
     min :: Int,
     sec :: Int,
-    player_id :: Maybe Int,
+    player_id :: Maybe PlayerId,
     team_id :: Int,
     outcome :: Maybe Int,
     coordinates :: Maybe coordinates,
-    timestamp :: DateTime, -- FIXME Should be more granular timestamp type.
+    timestamp :: DateTime,
     last_modified :: DateTime,
     qs :: [Q]
 }
@@ -158,10 +161,49 @@ isHomeTeam :: Game a -> Event b -> Bool
 isHomeTeam game event =
     (team_id event) == (home_team_id game)
 
-convertGameCoordinates :: Tracab.TeamKind -> Tracab.Metadata -> Game F24Coordinates -> Game Tracab.Coordinates
-convertGameCoordinates flippedFirstHalf metaData game =
+eventTeam :: Game a -> Event b -> Maybe Tracab.TeamKind
+eventTeam game event
+    | isHomeTeam game event = Just Tracab.Home
+    | isAwayTeam game event = Just Tracab.Away
+    | otherwise = Nothing
+
+
+getFlippedHalves :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> (Maybe Tracab.TeamKind, Maybe Tracab.TeamKind)
+getFlippedHalves metaData frames =
+    (Map.lookup 1 flippedMap, Map.lookup 2 flippedMap)
+    where
+    flippedMap = createFlippedTeamMapping metaData frames
+
+
+createFlippedTeamMapping :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> Map.Map Int Tracab.TeamKind
+createFlippedTeamMapping metaData frames =
+    Map.fromList $ map createKeyFlipped tracabPeriods
+    where
+    tracabPeriods = filter (\p -> (Tracab.startFrame p) /= (Tracab.endFrame p)) (Tracab.periods metaData)
+
+    createKeyFlipped period =
+        ( Tracab.periodId period, flipped)
+        where
+        flipped =
+            case filter isKickOff frames of
+                [] ->
+                    -- This obviously shouldn't happen but the map is strict and you
+                    -- may have incomplete data, for example you may be only analysing
+                    -- the second half, in which case you don't care about the first half
+                    -- and perhaps haven't provided the frames for the first half.
+                    Tracab.Away
+                kickOffFrame : _ ->
+                    Tracab.rightToLeftKickOff kickOffFrame
+        kickOffFrameId = Tracab.startFrame period
+        isKickOff frame =
+            (Tracab.frameId frame) == kickOffFrameId
+
+
+convertGameCoordinates :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> Game F24Coordinates -> Game Tracab.Coordinates
+convertGameCoordinates metaData frames game =
     game { events = map convertEvent (events game) }
     where
+    flippedMap = createFlippedTeamMapping metaData frames
     convertEvent event =
         event { coordinates = liftM convertCoordinates $ coordinates event }
         where
@@ -227,34 +269,13 @@ convertGameCoordinates flippedFirstHalf metaData game =
 
 
         perhapsFlipFactor =
-            case eventTeam == flippedTeam of
-                True -> (-1)
-                False -> 1
-
-
-        -- NOTE: We're going to have to worry about periods of extra-time, I think we have to pass in which
-        -- team was left-to-right in the first period of extra-time because it's not necessarily flipped from
-        -- the second-half of normal time.
-        isFirstHalf = (period_id event) == 1
-        -- All of OPTA's events assume that the team associated with the event are playing from left-to-right.
-        -- However, tracab's coordinates do flip in this manner, so each event must be either flipped or not.
-        -- Once we have determined which team was playing left-to-right in the first half then we know whether
-        -- we need to flip the coordinates from that event or not.
-        -- Note that we have to flip the *y* as well as the x.
-        flippedTeam =
-                case isFirstHalf of
-                    True ->
-                        flippedFirstHalf
-                    False ->
-                        Tracab.oppositionKind flippedFirstHalf
-        eventTeam =
-            -- Note this kind of assumes that if the event is not a home-team-event it's an away-team-event
-            -- I'm not sure if there are any 'neutral events' and if so, how we would determine whether it
-            -- needs flipped or not.
-            case isHomeTeam game event of
-                True -> Tracab.Home
-                False -> Tracab.Away
-
+            case Map.lookup (period_id event) flippedMap of
+                Just Tracab.Home | isHomeTeam game event ->
+                    -1
+                Just Tracab.Away | isAwayTeam game event ->
+                    -1
+                otherwise ->
+                    1
 
 
 
@@ -328,3 +349,83 @@ eventTypeName event =
         65 -> "Contentious decision"
 
         unknown -> "Unknown: " ++ show unknown
+
+
+type ShirtNumber = Int
+type ShirtNumbers = Map.Map PlayerId (Tracab.TeamKind, ShirtNumber)
+
+
+data Metadata = Metadata{
+    homeTeam :: TeamData,
+    awayTeam :: TeamData,
+    shirtNumbers :: ShirtNumbers
+}
+
+data TeamData = TeamData {
+    players :: [PlayerData]
+}
+
+
+
+data PlayerData = PlayerData {
+    playerRef :: String,
+    formationPosition :: String,
+    shirtNumber :: ShirtNumber
+}
+
+
+parseMetaFile :: String -> IO Metadata
+parseMetaFile filename = do
+    root <- Xml.loadXmlFromFile filename
+    return $ makeMetadata root
+
+makeMetadata :: Element -> Metadata
+makeMetadata element =
+    Metadata
+      { homeTeam = parseTeamData homeTeamDataElement
+      , awayTeam = parseTeamData awayTeamDataElement
+      , shirtNumbers = shirtNumbers
+      }
+    where
+    shirtNumbers = Map.union (collectShirtNumbers Tracab.Home homeTeam) (collectShirtNumbers Tracab.Away awayTeam)
+
+    collectShirtNumbers teamKind teamData =
+        Map.fromList $ map createPair (players teamData)
+        where
+        createPair playerData =
+            -- Player data looks like: <MatchPlayer Formation_Place="1" PlayerRef="p167040" Position="Goalkeeper" ShirtNumber="1" Status="Start" />
+            -- So for some reason the playerRef is in the format `p<player_id>` where the `player_id` part matches up with those given in the Event data
+            -- in the actual f24 file. So to parse it we just drop the 'p' and read the rest as an integer.
+            -- This player_id part we map to the shirt number, since this should correspond with the shirt-number used in the Tracab file.
+            -- So basically here, we are going from the above MatchPlayer element to `(167040, 1)`.
+            ( read $ drop 1 $ playerRef playerData
+            , (teamKind, shirtNumber playerData)
+            )
+
+
+    homeTeam = parseTeamData homeTeamDataElement
+    awayTeam = parseTeamData awayTeamDataElement
+    homeTeamDataElement =
+        head $ filter (hasAttributeWithValue "Side" "Home") allTeamData
+
+    awayTeamDataElement =
+        head $ filter (hasAttributeWithValue "Side" "Away") allTeamData
+
+    allTeamData =
+        Xml.getChildrenWithQName "TeamData" matchData
+        where
+        soccerFeed = element
+        soccerDocument = last $ Xml.getChildrenWithQName "SoccerDocument" soccerFeed
+        matchData = head $ Xml.getChildrenWithQName "MatchData" soccerDocument
+
+    parseTeamData teamElement =
+        TeamData { players = map parsePlayerData $ Xml.getChildrenWithQName "MatchPlayer" lineupElement }
+        where
+        lineupElement = head $ Xml.getChildrenWithQName "PlayerLineUp" teamElement
+
+    parsePlayerData playerElement =
+        PlayerData
+            { playerRef = Xml.attrLookupStrict playerElement id "PlayerRef"
+            , formationPosition = Xml.attrLookupStrict playerElement id "Position"
+            , shirtNumber = Xml.attrLookupStrict playerElement read "ShirtNumber"
+            }
