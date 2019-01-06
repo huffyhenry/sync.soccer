@@ -35,7 +35,7 @@ data <- read_csv(frames.file) %>%
   mutate(animation.clock=cumsum(as.numeric(is.ball)))
 
 # Take only an initial segment of data for animation development
-data <- data %>% filter(clock > 60*8 & clock < 60*9)
+data <- data %>% filter(clock > 60*0.5 & clock < 60*1)
 
 animation <- ggplot(data, aes(x=x.f, y=y.f)) +
   geom_text(data=filter(data, is.ball), aes(x=-3500, y=3550, label=desc.f)) +
