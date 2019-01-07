@@ -2,7 +2,7 @@ module Scoring where
 
 import qualified Data.Map.Strict as Map
 import qualified Data.List
-import Data.Maybe (fromJust)
+import Data.Maybe (maybe)
 import Statistics.Distribution (logDensity)
 import Statistics.Distribution.Normal as Gaussian
 import qualified Tracab as Tcb
@@ -31,12 +31,12 @@ euclideanDistance object target =
 clockScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
 clockScore scale e f =
     let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
-        dist = abs $ seconds - (fromJust $ Tcb.clock f)
+        dist = abs $ seconds - (maybe seconds id (Tcb.clock f))
     in logDensity Gaussian.standard (dist / scale)
 
 locationScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
 locationScore scale e f =
-    let eXY = fromJust $ F24.coordinates e
+    let eXY = maybe fXY id (F24.coordinates e)
         fXY = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
         dist = euclideanDistance eXY fXY
     in logDensity Gaussian.standard (dist / scale)
