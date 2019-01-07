@@ -3,21 +3,16 @@
 
 module Tracab where
 
-
-
 import qualified Data.IntMap as Map
 import qualified Data.List.Split as Split
 import Data.Maybe (maybe, Maybe, listToMaybe)
 import System.IO  (openFile, hGetContents, hClose, IOMode(ReadMode))
 import System.Environment (getArgs)
-import Text.XML.Light.Types ( Element )
+import Text.XML.Light.Types (Element)
 import Text.Printf (printf)
-import qualified XmlUtils
-import XmlUtils ( attrLookupStrict, attrLookup )
+import XmlUtils (attrLookupStrict, attrLookup)
 import qualified XmlUtils as Xml
-import Numeric.LinearAlgebra.Static
-    ( L, matrix )
-
+import Numeric.LinearAlgebra.Static (L, matrix)
 
 
 -- Complete Tracab data
@@ -63,55 +58,7 @@ data Frame positions = Frame{
     }
 type Frames positions = [Frame positions]
 
-{-
-    This is really just a dummy function to convert the entirety of a parsed frame,
-    including the positions, into a single integer. The trick here is to make sure that
-    we utilise every single part of the frame, this forces evaluation of the parsed frame
-    and hence any parser errors to come to light.
--}
-frameInteger :: Frame Positions -> Int
-frameInteger frame =
-    sum
-        [ frameId frame
-        , clockInt
-        , sum $ map positionInt (agents framePositions)
-        , positionInt $ ball framePositions
-        ]
-    where
-    framePositions = positions frame
-    clockInt =
-        case clock frame of
-            Nothing ->
-                0
-            Just x ->
-                round x
-    positionInt :: Position -> Int
-    positionInt position =
-        sum
-            [ participantId position
-            , x $ coordinates position
-            , y $ coordinates position
-            , round $ speed position
-            , teamInt
-            , ballInt
-            ]
-        where
-        teamInt =
-            case mTeam position of
-                Nothing ->
-                    0
-                Just Home ->
-                    1
-                Just Away ->
-                    2
-        ballInt =
-            case mBallStatus position of
-                Nothing ->
-                    0
-                Just Alive ->
-                    1
-                Just Dead ->
-                    2
+
 
 instance Show (Frame pos) where
     show f =

@@ -1,17 +1,14 @@
 module F24 where
 
 import qualified Data.Map.Strict as Map
-import qualified Tracab
+import qualified Tracab as Tcb
 import Prelude hiding (min)
 import qualified Data.ByteString as BS
-import Text.XML.Light.Input
-import Text.XML.Light.Types
+import Text.XML.Light.Types (Element)
 import Text.Printf (printf)
-import Control.Exception
 import Control.Monad (liftM)
 import Data.DateTime
 import Data.Maybe
-import Data.Typeable
 import XmlUtils ( attrLookupStrict, attrLookup, hasAttributeWithValue )
 import qualified XmlUtils as Xml
 
@@ -161,28 +158,28 @@ isHomeTeam :: Game a -> Event b -> Bool
 isHomeTeam game event =
     (team_id event) == (home_team_id game)
 
-eventTeam :: Game a -> Event b -> Maybe Tracab.TeamKind
+eventTeam :: Game a -> Event b -> Maybe Tcb.TeamKind
 eventTeam game event
-    | isHomeTeam game event = Just Tracab.Home
-    | isAwayTeam game event = Just Tracab.Away
+    | isHomeTeam game event = Just Tcb.Home
+    | isAwayTeam game event = Just Tcb.Away
     | otherwise = Nothing
 
 
-getFlippedHalves :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> (Maybe Tracab.TeamKind, Maybe Tracab.TeamKind)
+getFlippedHalves :: Tcb.Metadata -> Tcb.Frames Tcb.Positions -> (Maybe Tcb.TeamKind, Maybe Tcb.TeamKind)
 getFlippedHalves metaData frames =
     (Map.lookup 1 flippedMap, Map.lookup 2 flippedMap)
     where
     flippedMap = createFlippedTeamMapping metaData frames
 
 
-createFlippedTeamMapping :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> Map.Map Int Tracab.TeamKind
+createFlippedTeamMapping :: Tcb.Metadata -> Tcb.Frames Tcb.Positions -> Map.Map Int Tcb.TeamKind
 createFlippedTeamMapping metaData frames =
     Map.fromList $ map createKeyFlipped tracabPeriods
     where
-    tracabPeriods = filter (\p -> (Tracab.startFrame p) /= (Tracab.endFrame p)) (Tracab.periods metaData)
+    tracabPeriods = filter (\p -> (Tcb.startFrame p) /= (Tcb.endFrame p)) (Tcb.periods metaData)
 
     createKeyFlipped period =
-        ( Tracab.periodId period, flipped)
+        ( Tcb.periodId period, flipped)
         where
         flipped =
             case filter isKickOff frames of
@@ -191,15 +188,15 @@ createFlippedTeamMapping metaData frames =
                     -- may have incomplete data, for example you may be only analysing
                     -- the second half, in which case you don't care about the first half
                     -- and perhaps haven't provided the frames for the first half.
-                    Tracab.Away
+                    Tcb.Away
                 kickOffFrame : _ ->
-                    Tracab.rightToLeftKickOff kickOffFrame
-        kickOffFrameId = Tracab.startFrame period
+                    Tcb.rightToLeftKickOff kickOffFrame
+        kickOffFrameId = Tcb.startFrame period
         isKickOff frame =
-            (Tracab.frameId frame) == kickOffFrameId
+            (Tcb.frameId frame) == kickOffFrameId
 
 
-convertGameCoordinates :: Tracab.Metadata -> Tracab.Frames Tracab.Positions -> Game F24Coordinates -> Game Tracab.Coordinates
+convertGameCoordinates :: Tcb.Metadata -> Tcb.Frames Tcb.Positions -> Game F24Coordinates -> Game Tcb.Coordinates
 convertGameCoordinates metaData frames game =
     game { events = map convertEvent (events game) }
     where
@@ -208,9 +205,9 @@ convertGameCoordinates metaData frames game =
         event { coordinates = liftM convertCoordinates $ coordinates event }
         where
         convertCoordinates coords =
-            Tracab.Coordinates
-                { Tracab.x = convertedX
-                , Tracab.y = convertedY
+            Tcb.Coordinates
+                { Tcb.x = convertedX
+                , Tcb.y = convertedY
                 }
             where
             isInPenaltyBox =
@@ -218,7 +215,7 @@ convertGameCoordinates metaData frames game =
                 (21.1 <= optaY && optaY <= 78.9)
 
             convertedX = convertCentiMeters pitchLength xCentiMeters
-            pitchLength = Tracab.pitchSizeX metaData
+            pitchLength = Tcb.pitchSizeX metaData
             optaX = xPercentage coords
             xCentiMeters =
                 -- So note, for the x coordinate to be treated as in the penalty box
@@ -248,7 +245,7 @@ convertGameCoordinates metaData frames game =
                                 percentageFromOppGoal = 100.0 - optaX
 
             convertedY = convertCentiMeters pitchWidth yCentiMeters
-            pitchWidth = Tracab.pitchSizeY metaData
+            pitchWidth = Tcb.pitchSizeY metaData
             optaY = yPercentage coords
             yCentiMeters =
                 case isInPenaltyBox of
@@ -270,9 +267,9 @@ convertGameCoordinates metaData frames game =
 
         perhapsFlipFactor =
             case Map.lookup (period_id event) flippedMap of
-                Just Tracab.Home | isHomeTeam game event ->
+                Just Tcb.Home | isHomeTeam game event ->
                     -1
-                Just Tracab.Away | isAwayTeam game event ->
+                Just Tcb.Away | isAwayTeam game event ->
                     -1
                 otherwise ->
                     1
@@ -352,7 +349,7 @@ eventTypeName event =
 
 
 type ShirtNumber = Int
-type ShirtNumbers = Map.Map PlayerId (Tracab.TeamKind, ShirtNumber)
+type ShirtNumbers = Map.Map PlayerId (Tcb.TeamKind, ShirtNumber)
 
 
 data Metadata = Metadata{
@@ -387,7 +384,7 @@ makeMetadata element =
       , shirtNumbers = shirtNumbers
       }
     where
-    shirtNumbers = Map.union (collectShirtNumbers Tracab.Home homeTeam) (collectShirtNumbers Tracab.Away awayTeam)
+    shirtNumbers = Map.union (collectShirtNumbers Tcb.Home homeTeam) (collectShirtNumbers Tcb.Away awayTeam)
 
     collectShirtNumbers teamKind teamData =
         Map.fromList $ map createPair (players teamData)
