@@ -2,6 +2,9 @@ module Scoring where
 
 import qualified Data.Map.Strict as Map
 import qualified Data.List
+import Data.Maybe (fromJust)
+import Statistics.Distribution (logDensity)
+import Statistics.Distribution.Normal as Gaussian
 import qualified Tracab as Tcb
 import qualified F24
 
@@ -26,3 +29,30 @@ euclideanDistance object target =
     ySquareSide = squareSide (Tcb.y object) (Tcb.y target)
 
     squareSide p b = (p - b) ^ 2
+
+clockScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+clockScore scale e f =
+    let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
+        dist = abs $ seconds - (fromJust $ Tcb.clock f)
+    in logDensity Gaussian.standard (dist / scale)
+
+locationScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+locationScore scale e f =
+    let eX = (Tcb.x . fromJust . F24.coordinates) e
+        eY = (Tcb.y . fromJust . F24.coordinates) e
+        ballCoordinates = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
+        fX = Tcb.x ballCoordinates
+        fY = Tcb.y ballCoordinates
+        xDist = fromIntegral $ eX - fX
+        yDist = fromIntegral $ eY - fY
+        dist = sqrt $ xDist**2.0 + yDist**2.0
+    in logDensity Gaussian.standard (dist / scale)
+
+ballStatusScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+ballStatusScore scale _ f = case Tcb.mBallStatus $ Tcb.ball $ Tcb.positions f of
+                                 Nothing -> 0.0
+                                 Just Tcb.Alive -> scale
+                                 Just Tcb.Dead -> (-scale)
+
+totalScore :: F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+totalScore e f = (clockScore 1.0 e f) + (locationScore 100.0 e f) + (ballStatusScore 1.0 e f)
