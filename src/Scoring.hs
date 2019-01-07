@@ -53,8 +53,13 @@ ballStatusScore scale _ f = case Tcb.mBallStatus $ Tcb.ball $ Tcb.positions f of
                                  Just Tcb.Alive -> scale
                                  Just Tcb.Dead -> (-scale)
 
-totalScore :: ScoringFunction
-totalScore scale e f = scale*total where
+playerScore :: F24.ShirtNumbers -> ScoringFunction
+playerScore jerseys scale e f = logDensity Gaussian.standard (dist / scale) where
+    dist = maybe 0.0 id (eventPlayerDistance jerseys e f)
+
+totalScore :: F24.ShirtNumbers -> ScoringFunction
+totalScore jerseys scale e f = scale*total where
     total = sum [clockScore 1.0 e f,
                  locationScore 100.0 e f,
-                 ballStatusScore 1.0 e f]
+                 ballStatusScore 1.0 e f,
+                 playerScore jerseys 25.0 e f]
