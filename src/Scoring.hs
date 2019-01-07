@@ -22,12 +22,10 @@ eventPlayerDistance shirtNumbers event frame =
 
 euclideanDistance :: Tcb.Coordinates -> Tcb.Coordinates -> Double
 euclideanDistance object target =
-    sqrt $ fromIntegral sumSquareSides
+    sqrt $ fromIntegral (xSquareSide + ySquareSide)
     where
-    sumSquareSides = xSquareSide + ySquareSide
     xSquareSide = squareSide (Tcb.x object) (Tcb.x target)
     ySquareSide = squareSide (Tcb.y object) (Tcb.y target)
-
     squareSide p b = (p - b) ^ 2
 
 clockScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
@@ -38,14 +36,9 @@ clockScore scale e f =
 
 locationScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
 locationScore scale e f =
-    let eX = (Tcb.x . fromJust . F24.coordinates) e
-        eY = (Tcb.y . fromJust . F24.coordinates) e
-        ballCoordinates = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
-        fX = Tcb.x ballCoordinates
-        fY = Tcb.y ballCoordinates
-        xDist = fromIntegral $ eX - fX
-        yDist = fromIntegral $ eY - fY
-        dist = sqrt $ xDist**2.0 + yDist**2.0
+    let eXY = fromJust $ F24.coordinates e
+        fXY = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
+        dist = euclideanDistance eXY fXY
     in logDensity Gaussian.standard (dist / scale)
 
 ballStatusScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
