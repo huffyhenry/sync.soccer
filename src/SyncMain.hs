@@ -1,3 +1,4 @@
+import Control.Monad (when)
 import Options.Applicative
 import Data.Semigroup ((<>))
 import qualified Tracab as Tcb
@@ -14,7 +15,9 @@ data Options = Options {
     f7File      :: String,
     f24File     :: String,
     outputFile  :: String,
-    timeOnly    :: Bool
+    timeOnly    :: Bool,
+    eventCSV    :: String,
+    frameCSV    :: String
 } deriving Show
 
 options :: Parser Options
@@ -25,10 +28,12 @@ options = Options
        <*> argument str (metavar "F24")
        <*> argument str (metavar "OUTPUT")
        <*> switch (long "time-only" <> short 't' <> help "Sync only by time")
+       <*> strOption (long "event-csv" <> short 'e' <> value "" <> metavar "FILEPATH" <> help "Location to save a CSV of F24 events")
+       <*> strOption (long "frame-csv" <> short 'f' <> value "" <> metavar "FILEPATH" <> help "Location to save a CSV of Tracab frames")
 
 parseOptions :: IO Options
 parseOptions = let desc = "Synchronise Tracab and F24 data."
-                   hdr = "Copyright (c) 2018 Allan Clark and Marek Kwiatkowski."
+                   hdr = "Copyright (c) 2018-2019 Allan Clark and Marek Kwiatkowski."
                in execParser $ info (options <**> helper) (fullDesc <> progDesc desc <> header hdr)
 
 main :: IO ()
@@ -69,3 +74,7 @@ main = do
     let sync1 = NW.align events1 frames1 sim gapl gapr
     let sync2 = NW.align events2 frames2 sim gapl gapr
     CSV.alignment2Csv (NW.joinAlignments sync1 sync2) (outputFile opts)
+
+    -- Write event and frame CSVs if requested
+    when (eventCSV opts /= "") $ CSV.events2Csv (events1 ++ events2) (eventCSV opts)
+    when (frameCSV opts /= "") $ CSV.frames2Csv (frames1 ++ frames2) (frameCSV opts)
