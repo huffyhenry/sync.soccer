@@ -45,10 +45,12 @@ main = do
     f24Raw <- F24.loadGameFromFile (f24File opts)
     let f24Data = F24.convertGameCoordinates tbMeta tbData f24Raw
 
-    -- Select first and second half events and frames
-    let events1 = filter (\e -> F24.period_id e == 1) (F24.events f24Data)
-    let events2 = filter (\e -> F24.period_id e == 2) (F24.events f24Data)
+    -- Select events to sync in both halves
+    let syncable pid e = (F24.period_id e == pid) && (F24.isOTB e)
+    let events1 = filter (syncable 1) (F24.events f24Data)
+    let events2 = filter (syncable 2) (F24.events f24Data)
 
+    -- Select frames to sync to
     let p1start = (Tcb.startFrame . head . Tcb.periods) tbMeta
     let p2start = (Tcb.startFrame . head . tail . Tcb.periods) tbMeta
     let p1end = (Tcb.endFrame . head . Tcb.periods) tbMeta
