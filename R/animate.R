@@ -41,7 +41,7 @@ animation <- ggplot(data, aes(x=x.f, y=y.f)) +
   geom_text(data=filter(data, is.ball), aes(x=-3500, y=3550, label=desc.f)) +
   geom_text(aes(x=3500, y=3550, label=desc.e), colour='red') +
   annotate_pitch(x_scale=105.0, y_scale=68.0, x_shift=-10500/2, y_shift=-6800/2) +
-  annotate("text", x=4200, y=-3200, label="sync.soccer", fontface="italic") +
+  annotate("text", x=4000, y=-3200, label="info@sync.soccer", fontface="italic") +
   geom_point(data=filter(data, is.ball), size=1.5) +
   geom_point(data=filter(data, !is.ball), aes(color=team.f), size=3, alpha=0.75) +
   geom_point(aes(x=x.e, y=y.e), colour="red", shape=4, size=4) +
