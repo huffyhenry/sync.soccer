@@ -2,12 +2,11 @@ library(readr, quietly=TRUE)
 library(dplyr, quietly=TRUE)
 library(ggplot2, quietly=TRUE)
 library(tidyr, quietly=TRUE)
-
-# To install gganimate and ggsoccer:
-# > install.packages("devtools")
-# > devtools::install_github("thomasp85/gganimate")
-# > devtools::install_github("torvaney/ggsoccer")
 library(gganimate)
+
+# To install ggsoccer:
+# > install.packages("devtools")
+# > devtools::install_github("torvaney/ggsoccer")
 library(ggsoccer)
 
 frames.file <- "../data/csv/frames.csv"
