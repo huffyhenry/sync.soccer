@@ -1,53 +1,81 @@
-library(readr, quietly=TRUE)
-library(dplyr, quietly=TRUE)
-library(ggplot2, quietly=TRUE)
-library(tidyr, quietly=TRUE)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
 library(gganimate)
 
-# To install ggsoccer:
-# > install.packages("devtools")
-# > devtools::install_github("torvaney/ggsoccer")
+# Install my fork of ggsoccer for Tracab support.
+# Can be replaced with the official CRAN version of the package in the future.
+library(devtools)
+install_github("https://github.com/huffyhenry/ggsoccer")
 library(ggsoccer)
 
+# Source files
 frames.file <- "../data/csv/frames.csv"
 events.file <- "../data/csv/events.csv"
 sync.file <- "../data/csv/sync.csv"
 
+# The segment of data to animate (in seconds, based on Tracab's implied clock)
+start.clock <- 60
+end.clock <- start.clock + 30
+
+# Pitch dimensions in metres, from Tracab metadata.
+pitch.length <- 105.0
+pitch.width <- 68.0
+
+# Presentation
+team1.colour <- "#034694"
+team2.colour <- "#6cabdd"
+tracab.colour <- "black"
+opta.colour <- "red"
+
+
+# Load both data streams and merge them according to the sync file.
+# Each row is the position of a single player or of the ball.
+# Positions in frames aligned to an event are annotated with that event data.
 data <- read_csv(frames.file) %>%
-  mutate(is.ball=(object == 0)) %>%
-  filter(team %in% c(0,1)) %>%   # Drop officials
+  # Drop officials
+  filter(team != 3) %>%
+  # Add matched event IDs
   left_join(read_csv(sync.file)) %>%
-  mutate( # Keep events matched to the ball rows only
-    event=ifelse(is.ball, event, NA),
-    is.event=!is.na(event)
-  ) %>%
+  # Add event information
   left_join(read_csv(events.file), by="event", suffix=c(".f", ".e")) %>%
+  # Create descriptions to print (running clock / event type and time)
   mutate(
-    team.f=factor(ifelse(is.ball, -1, team.f)),  # Give the ball its own "team"
-    desc.f=sprintf("Implied Tracab clock: %.2fs", clock),
-    desc.e=ifelse(is.event, sprintf("%02d:%02d %s", minute, second, event_type), "")
+    desc.f=sprintf(
+      "Implied Tracab clock - %02d:%02d.%03d",
+      floor(clock) %/% 60, floor(clock) %% 60, floor(1000*(clock - floor(clock)))
+    ),
+    desc.e=ifelse(
+      is.na(event),
+      "",
+      sprintf("Opta event - %02d:%02d %s", minute, second, event_type)
+    )
   ) %>%
-  # Repeat the frames that are aligned to an event 20 times to simulate a pause
-  mutate(weight=ifelse(is.event, 20, 1)) %>%
-  uncount(weight) %>%
+  # Repeat the ball positions aligned to an event 25 times to simulate a pause
+  uncount(ifelse(object == 0 & !is.na(event), 25, 1)) %>%
+  # Create a frame counter (cumulative count of ball positions)
   arrange(clock, object) %>%
-  mutate(animation.clock=cumsum(as.numeric(is.ball)))
+  mutate(animation.clock=cumsum(as.numeric(object == 0))) %>%
+  # Take only an interval of data as defined by constants above
+  filter(clock > start.clock & clock < end.clock)
 
-# Take only an initial segment of data for animation development
-data <- data %>% filter(clock > 60*0.5 & clock < 60*1)
+# Split the dataset to simplify and speed up plotting logic.
+ball <- filter(data, object == 0)
+players <- filter(data, object != 0)
 
-animation <- ggplot(data, aes(x=x.f, y=y.f)) +
-  geom_text(data=filter(data, is.ball), aes(x=-3500, y=3550, label=desc.f)) +
-  geom_text(aes(x=3500, y=3550, label=desc.e), colour='red') +
-  annotate_pitch(x_scale=105.0, y_scale=68.0, x_shift=-10500/2, y_shift=-6800/2) +
-  annotate("text", x=4000, y=-3200, label="info@sync.soccer", fontface="italic") +
-  geom_point(data=filter(data, is.ball), size=1.5) +
-  geom_point(data=filter(data, !is.ball), aes(color=team.f), size=3, alpha=0.75) +
-  geom_point(aes(x=x.e, y=y.e), colour="red", shape=4, size=4) +
-  scale_color_manual(values=c("#034694", "#6cabdd")) +
-  coord_cartesian(xlim=c(-5500, 5500), ylim=c(-3500, 3500)) +
+# Animate
+animation <- ggplot(ball, aes(x=x.f, y=y.f)) +
+  annotate_pitch(dimensions=make_pitch_tracab(pitch.length, pitch.width)) +
+  geom_text(aes(x=-25*pitch.length, y=47*pitch.width, label=desc.f), colour=tracab.colour) +
+  geom_text(aes(x=25*pitch.length, y=47*pitch.width, label=desc.e), colour=opta.colour) +
+  geom_point(size=1.5) +
+  geom_point(data=players, aes(color=as.factor(team.f)), size=3, alpha=0.75) +
+  geom_point(aes(x=x.e, y=y.e), colour=opta.colour, shape=4, size=4) +
+  scale_color_manual(values=c(team1.colour, team2.colour)) +
   transition_time(animation.clock) +
-  theme_pitch() +
+  theme_pitch(aspect_ratio=pitch.width/pitch.length) +
   theme(legend.position="none")
 
-animate(animation, fps=5, nframes=nrow(filter(data, is.ball)), renderer=ffmpeg_renderer())
+animate(animation, nframes=nrow(ball), duration=end.clock-start.clock)
+
