@@ -3,17 +3,16 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(gganimate)
-
-# Install my fork of ggsoccer for Tracab support.
-# Can be replaced with the official CRAN version of the package in the future.
-library(devtools)
-install_github("https://github.com/huffyhenry/ggsoccer")
 library(ggsoccer)
+
 
 # Source files
 frames.file <- "../data/csv/frames.csv"
 events.file <- "../data/csv/events.csv"
 sync.file <- "../data/csv/sync.csv"
+
+# File to save animation to
+anim.file <- "../clip.gif"
 
 # The segment of data to animate (in seconds, based on Tracab's implied clock)
 start.clock <- 60
@@ -79,3 +78,4 @@ animation <- ggplot(ball, aes(x=x.f, y=y.f)) +
 
 animate(animation, nframes=nrow(ball), duration=end.clock-start.clock)
 
+anim_save(anim.file)
