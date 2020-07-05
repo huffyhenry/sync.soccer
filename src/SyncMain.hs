@@ -58,11 +58,6 @@ main = do
     let frames1 = filter (\f -> (Tcb.frameId f <= p1end) && (Tcb.frameId f >= p1start)) tbData
     let frames2 = filter (\f -> (Tcb.frameId f <= p2end) && (Tcb.frameId f >= p2start)) tbData
 
-    -- So if you want to do some smoothing using matrices for the frame data then
-    let frameMatrices = Tcb.translateFrames frames2
-    -- If you want just a list of matrices then
-    let tracabMatrices = map Tcb.positions frameMatrices
-
     -- The penalty for leaving frames unaligned needs to be small.
     -- Conversely, leaving events unaligned should be costly.
     -- Note that the score for a Match is negative on the log-density scale.

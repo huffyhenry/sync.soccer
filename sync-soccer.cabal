@@ -32,4 +32,3 @@ executable sync-soccer
     , array
     , statistics
     , optparse-applicative
-    , hmatrix
