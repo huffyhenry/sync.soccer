@@ -13,7 +13,7 @@ eventPlayerDistance shirtNumbers event frame =
     do
         playerId <- F24.player_id event
         (teamKind, shirtNumber) <- Map.lookup playerId shirtNumbers
-        let isPlayer p = Tcb.participantId p == shirtNumber && Tcb.mTeam p == Just teamKind
+        let isPlayer p = Tcb.shirtNumber p == Just shirtNumber && Tcb.mTeam p == Just teamKind
         let positions = Tcb.positions frame
         playerPosition <- Data.List.find isPlayer $ Tcb.agents positions
         let playerCoords = Tcb.coordinates playerPosition
@@ -60,6 +60,6 @@ playerScore jerseys scale e f = logDensity Gaussian.standard (dist / scale) wher
 totalScore :: F24.ShirtNumbers -> ScoringFunction
 totalScore jerseys scale e f = scale*total where
     total = sum [clockScore 1.0 e f,
-                 locationScore 100.0 e f,
+                 locationScore 5000.0 e f,
                  ballStatusScore 1.0 e f,
-                 playerScore jerseys 25.0 e f]
+                 playerScore jerseys 100.0 e f]
