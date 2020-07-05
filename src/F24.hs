@@ -9,7 +9,7 @@ import Text.Printf (printf)
 import Control.Monad (liftM)
 import Data.DateTime
 import Data.Maybe
-import XmlUtils ( attrLookupStrict, attrLookup, hasAttributeWithValue )
+import XmlUtils (attrLookupStrict, attrLookup, hasAttributeWithValue)
 import qualified XmlUtils as Xml
 
 data Game coordinates = Game {
@@ -151,12 +151,10 @@ makeGame el = Game { gid = attrLookupStrict el read "id",
 
 
 isAwayTeam :: Game a -> Event b -> Bool
-isAwayTeam game event =
-    (team_id event) == (away_team_id game)
+isAwayTeam game event = team_id event == away_team_id game
 
 isHomeTeam :: Game a -> Event b -> Bool
-isHomeTeam game event =
-    (team_id event) == (home_team_id game)
+isHomeTeam game event = team_id event == home_team_id game
 
 eventTeam :: Game a -> Event b -> Maybe Tcb.TeamKind
 eventTeam game event
@@ -176,7 +174,7 @@ createFlippedTeamMapping :: Tcb.Metadata -> Tcb.Frames Tcb.Positions -> Map.Map 
 createFlippedTeamMapping metaData frames =
     Map.fromList $ map createKeyFlipped tracabPeriods
     where
-    tracabPeriods = filter (\p -> (Tcb.startFrame p) /= (Tcb.endFrame p)) (Tcb.periods metaData)
+    tracabPeriods = filter (\p -> Tcb.startFrame p /= Tcb.endFrame p) (Tcb.periods metaData)
 
     createKeyFlipped period =
         ( Tcb.periodId period, flipped)
@@ -192,8 +190,7 @@ createFlippedTeamMapping metaData frames =
                 kickOffFrame : _ ->
                     Tcb.rightToLeftKickOff kickOffFrame
         kickOffFrameId = Tcb.startFrame period
-        isKickOff frame =
-            (Tcb.frameId frame) == kickOffFrameId
+        isKickOff frame = Tcb.frameId frame == kickOffFrameId
 
 
 convertGameCoordinates :: Tcb.Metadata -> Tcb.Frames Tcb.Positions -> Game F24Coordinates -> Game Tcb.Coordinates
@@ -202,7 +199,7 @@ convertGameCoordinates metaData frames game =
     where
     flippedMap = createFlippedTeamMapping metaData frames
     convertEvent event =
-        event { coordinates = liftM convertCoordinates $ coordinates event }
+        event { coordinates = fmap convertCoordinates $ coordinates event }
         where
         convertCoordinates coords =
             Tcb.Coordinates
@@ -267,17 +264,14 @@ convertGameCoordinates metaData frames game =
 
         perhapsFlipFactor =
             case Map.lookup (period_id event) flippedMap of
-                Just Tcb.Home | isHomeTeam game event ->
-                    -1
-                Just Tcb.Away | isAwayTeam game event ->
-                    -1
-                otherwise ->
-                    1
+                Just Tcb.Home | isHomeTeam game event -> -1
+                Just Tcb.Away | isAwayTeam game event -> -1
+                _                                     -> 1
 
 -- Whether the event is an on-the-ball event.
 -- Consult the list below for the meaning of event type IDs.
 isOTB :: Event c -> Bool
-isOTB e = elem (type_id e) ([1..16] ++ [41..45] ++ [49..61])
+isOTB e = type_id e `elem` ([1..16] ++ [41..45] ++ [49..61])
 
 
 eventTypeName :: Event a -> String
@@ -366,14 +360,11 @@ data TeamData = TeamData {
     players :: [PlayerData]
 }
 
-
-
 data PlayerData = PlayerData {
     playerRef :: String,
     formationPosition :: String,
     shirtNumber :: ShirtNumber
 }
-
 
 parseMetaFile :: String -> IO Metadata
 parseMetaFile filename = do

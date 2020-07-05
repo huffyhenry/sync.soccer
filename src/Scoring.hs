@@ -2,15 +2,14 @@ module Scoring where
 
 import qualified Data.Map.Strict as Map
 import qualified Data.List
-import Data.Maybe (maybe)
+import Data.Maybe (maybe, fromMaybe)
 import Statistics.Distribution (logDensity)
 import Statistics.Distribution.Normal as Gaussian
 import qualified Tracab as Tcb
 import qualified F24
 
 eventPlayerDistance :: F24.ShirtNumbers -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Maybe Double
-eventPlayerDistance shirtNumbers event frame =
-    do
+eventPlayerDistance shirtNumbers event frame = do
         playerId <- F24.player_id event
         (teamKind, shirtNumber) <- Map.lookup playerId shirtNumbers
         let isPlayer p = Tcb.shirtNumber p == Just shirtNumber && Tcb.mTeam p == Just teamKind
@@ -36,13 +35,13 @@ type ScoringFunction = Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Posi
 
 clockScore :: ScoringFunction
 clockScore scale e f =
-    let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
-        dist = abs $ seconds - (maybe seconds id (Tcb.clock f))
+    let seconds = fromIntegral $ 60 * F24.min e + F24.sec e
+        dist = abs $ seconds - fromMaybe seconds (Tcb.clock f)
     in logDensity Gaussian.standard (dist / scale)
 
 locationScore :: ScoringFunction
 locationScore scale e f =
-    let eXY = maybe fXY id (F24.coordinates e)
+    let eXY = fromMaybe fXY (F24.coordinates e)
         fXY = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
         dist = euclideanDistance eXY fXY
     in logDensity Gaussian.standard (dist / scale)
@@ -51,11 +50,11 @@ ballStatusScore :: ScoringFunction
 ballStatusScore scale _ f = case Tcb.mBallStatus $ Tcb.ball $ Tcb.positions f of
                                  Nothing -> 0.0
                                  Just Tcb.Alive -> scale
-                                 Just Tcb.Dead -> (-scale)
+                                 Just Tcb.Dead -> -scale
 
 playerScore :: F24.ShirtNumbers -> ScoringFunction
 playerScore jerseys scale e f = logDensity Gaussian.standard (dist / scale) where
-    dist = maybe 0.0 id (eventPlayerDistance jerseys e f)
+    dist = fromMaybe 0.0 (eventPlayerDistance jerseys e f)
 
 totalScore :: F24.ShirtNumbers -> ScoringFunction
 totalScore jerseys scale e f = scale*total where
