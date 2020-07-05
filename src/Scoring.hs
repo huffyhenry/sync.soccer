@@ -13,7 +13,7 @@ eventPlayerDistance shirtNumbers event frame =
     do
         playerId <- F24.player_id event
         (teamKind, shirtNumber) <- Map.lookup playerId shirtNumbers
-        let isPlayer p = Tcb.participantId p == shirtNumber && Tcb.mTeam p == Just teamKind
+        let isPlayer p = Tcb.shirtNumber p == Just shirtNumber && Tcb.mTeam p == Just teamKind
         let positions = Tcb.positions frame
         playerPosition <- Data.List.find isPlayer $ Tcb.agents positions
         let playerCoords = Tcb.coordinates playerPosition
@@ -28,24 +28,38 @@ euclideanDistance object target =
     ySquareSide = squareSide (Tcb.y object) (Tcb.y target)
     squareSide p b = (p - b) ^ 2
 
-clockScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+-- The type of the functions that measure agreement between an event and a frame.
+-- The bigger the return value, the better the agreement. In most cases, the
+-- return value is in (-oo, 0) and can be interpreted as log-likelihood.
+-- The first argument controls how stringent the function is and should be positive.
+type ScoringFunction = Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+
+clockScore :: ScoringFunction
 clockScore scale e f =
     let seconds = fromIntegral $ 60 * (F24.min e) + (F24.sec e)
         dist = abs $ seconds - (maybe seconds id (Tcb.clock f))
     in logDensity Gaussian.standard (dist / scale)
 
-locationScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+locationScore :: ScoringFunction
 locationScore scale e f =
     let eXY = maybe fXY id (F24.coordinates e)
         fXY = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
         dist = euclideanDistance eXY fXY
     in logDensity Gaussian.standard (dist / scale)
 
-ballStatusScore :: Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+ballStatusScore :: ScoringFunction
 ballStatusScore scale _ f = case Tcb.mBallStatus $ Tcb.ball $ Tcb.positions f of
                                  Nothing -> 0.0
                                  Just Tcb.Alive -> scale
                                  Just Tcb.Dead -> (-scale)
 
-totalScore :: F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
-totalScore e f = (clockScore 1.0 e f) + (locationScore 100.0 e f) + (ballStatusScore 1.0 e f)
+playerScore :: F24.ShirtNumbers -> ScoringFunction
+playerScore jerseys scale e f = logDensity Gaussian.standard (dist / scale) where
+    dist = maybe 0.0 id (eventPlayerDistance jerseys e f)
+
+totalScore :: F24.ShirtNumbers -> ScoringFunction
+totalScore jerseys scale e f = scale*total where
+    total = sum [clockScore 1.0 e f,
+                 locationScore 5000.0 e f,
+                 ballStatusScore 1.0 e f,
+                 playerScore jerseys 100.0 e f]

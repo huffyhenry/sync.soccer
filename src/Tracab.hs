@@ -43,6 +43,7 @@ data Coordinates = Coordinates {
 -- The position information of a single player/ball in a single snapshot
 data Position = Position{
     participantId :: Int,
+    shirtNumber :: Maybe Int,
     coordinates :: Coordinates,
     mTeam :: Maybe TeamKind,
     speed :: Float,
@@ -109,13 +110,14 @@ parseFrame meta inputLine =
   parsePosition inputStr =
       Position
         { participantId = read idStr
+        , shirtNumber = if jerseyStr == "-1" then Nothing else Just (read jerseyStr)
         , coordinates = Coordinates { x = read xStr , y = read yStr }
         , mTeam = team
         , speed = read speedStr
         , mBallStatus = Nothing
         }
       where
-      [teamStr,idStr,jerseyNumberStr,xStr,yStr,speedStr] = splitOn ',' inputStr
+      [teamStr,idStr,jerseyStr,xStr,yStr,speedStr] = splitOn ',' inputStr
       team =
         case teamStr of
             "1" ->
@@ -128,6 +130,7 @@ parseFrame meta inputLine =
   parseBallPosition inputStr =
       Position
         { participantId = 0
+        , shirtNumber = Nothing
         , coordinates = Coordinates { x = read xStr , y = read yStr }
         , mTeam = team
         , mBallStatus = ballStatus

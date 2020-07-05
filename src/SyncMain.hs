@@ -68,7 +68,9 @@ main = do
     -- Note that the score for a Match is negative on the log-density scale.
     let gapl = \f -> (-10.0)    -- Leaves a frame unaligned for p < exp(-10) = 4.5e-5
     let gapr = \e -> (-1000.0)
-    let sim = if timeOnly opts then Scoring.clockScore 1.0 else Scoring.totalScore
+    let sim = case timeOnly opts of
+          True  -> Scoring.clockScore 1.0
+          False -> Scoring.totalScore (F24.shirtNumbers f24Meta) 1.0
 
     -- Align!
     let sync1 = NW.align events1 frames1 sim gapl gapr
