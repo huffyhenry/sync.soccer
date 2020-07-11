@@ -295,7 +295,7 @@ convertGameCoordinates metaData frames game =
 -- Whether the event is an on-the-ball event.
 -- Consult the list below for the meaning of event type IDs.
 isOTB :: Event c -> Bool
-isOTB e = type_id e `elem` ([1..16] ++ [41..45] ++ [49..61])
+isOTB e = type_id e `elem` ([1..4] ++ [7..16] ++ [41..45] ++ [49..61])
 
 
 eventTypeName :: Event a -> String
