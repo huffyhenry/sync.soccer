@@ -14,7 +14,6 @@ import Text.XML.Light.Types
     )
 import Control.Exception
 import Control.Monad (liftM)
-import Data.DateTime
 import Data.Maybe (fromMaybe)
 import Data.Typeable
 

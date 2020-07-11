@@ -24,7 +24,6 @@ executable sync-soccer
 -- ld-options:          -static
   build-depends:
       base >= 4.7 && < 5
-    , datetime
     , containers
     , split
     , xml
@@ -32,3 +31,5 @@ executable sync-soccer
     , array
     , statistics
     , optparse-applicative
+    , time >= 1.9.3
+  

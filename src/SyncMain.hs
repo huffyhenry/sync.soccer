@@ -16,6 +16,7 @@ data Options = Options {
     f24File     :: String,
     outputFile  :: String,
     timeOnly    :: Bool,
+    timestamp   :: Bool,
     showsync    :: Bool,
     cScale      :: Double,
     lScale      :: Double,
@@ -33,6 +34,7 @@ options = Options
     <*> argument str (metavar "F24")
     <*> argument str (metavar "OUTPUT")
     <*> switch (long "time-only" <> short 't' <> help "Sync only by time")
+    <*> switch (long "timestamp" <> short 'u' <> help "Use F24 event timestamp instead of min:sec")
     <*> switch (long "show-sync" <> short 's' <> help "Print human-readable sync on screen")
     <*> option auto (long "scale-clock" <> short 'c' <> value 1 <> metavar "X" <> help "Clock difference resulting in unit penalty [s, default 1]")
     <*> option auto (long "scale-location" <> short 'l' <> value 5 <> metavar "X" <> help "Location difference resulting in unit penalty [m, default 5]")
@@ -77,7 +79,7 @@ main = do
     -- Build the scoring function as requested by the user.
     -- FIXME: Combine functions without mentioning arguments.
     let to = timeOnly opts
-    let scoreClock = Scoring.clockScore (cScale opts)
+    let scoreClock = Scoring.clockScore (timestamp opts) f24Data (cScale opts)
     let scoreLocation e f = if to then 0 else Scoring.locationScore (100 * lScale opts) e f
     let scorePlayer e f = if to then 0 else Scoring.playerScore (F24.shirtNumbers f24Meta) (100 * pScale opts) e f
     let scoreBall e f = if to then 0 else Scoring.ballStatusScore (bScale opts) e f

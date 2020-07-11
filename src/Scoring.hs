@@ -33,9 +33,9 @@ euclideanDistance object target =
 -- The first argument controls how stringent the function is and should be positive.
 type ScoringFunction = Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
 
-clockScore :: ScoringFunction
-clockScore scale e f =
-    let seconds = fromIntegral $ 60 * F24.min e + F24.sec e
+clockScore :: Bool -> F24.Game Tcb.Coordinates -> ScoringFunction
+clockScore useTimestamp game scale e f =
+    let seconds = F24.eventClock useTimestamp game e
         dist = abs $ seconds - fromMaybe seconds (Tcb.clock f)
     in logDensity Gaussian.standard (dist / scale)
 

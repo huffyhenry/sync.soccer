@@ -7,7 +7,9 @@ import qualified Data.ByteString as BS
 import Text.XML.Light.Types (Element)
 import Text.Printf (printf)
 import Control.Monad (liftM)
-import Data.DateTime
+import Data.Time
+import Data.Time.LocalTime
+import Data.Time.Clock (nominalDiffTimeToSeconds)
 import Data.Maybe
 import XmlUtils (attrLookupStrict, attrLookup, hasAttributeWithValue)
 import qualified XmlUtils as Xml
@@ -18,12 +20,12 @@ data Game coordinates = Game {
     away_team_name :: String,
     competition_id :: Int,
     competition_name :: String,
-    game_date :: DateTime,
+    game_date :: LocalTime,
     home_team_id :: Int,
     home_team_name :: String,
     matchday :: Int,
-    period_1_start :: DateTime,
-    period_2_start :: DateTime,
+    period_1_start :: LocalTime,
+    period_2_start :: LocalTime,
     season_id :: Int,
     season_name :: String,
     events :: [Event coordinates]
@@ -49,8 +51,8 @@ data Event coordinates = Event {
     team_id :: Int,
     outcome :: Maybe Int,
     coordinates :: Maybe coordinates,
-    timestamp :: DateTime,
-    last_modified :: DateTime,
+    timestamp :: LocalTime,
+    last_modified :: LocalTime,
     qs :: [Q]
 }
 
@@ -74,6 +76,20 @@ qval i e = let qq = filter (hasQid i) (qs e)
 hasQid :: Int -> Q -> Bool
 hasQid i q = qualifier_id q == i
 
+-- The amount of seconds played until the event, treating all completed
+-- game periods as having lasted exactly 45 minutes.
+-- The first argument controls whether event timestamp should be used.
+eventClock :: Bool -> Game cs -> Event cs -> Double
+eventClock False _ ee = fromIntegral (60 * min ee + sec ee)
+eventClock True gg ee = nominalOffset + actualSincePeriodStart where
+    half = period_id ee
+    nominalOffset = fromIntegral (60 * 45 * (half - 1))
+    eventTimestamp = timestamp ee
+    periodStart = if half == 1 then period_1_start gg else period_2_start gg
+    actualSincePeriodStart = convert (diffLocalTime eventTimestamp periodStart)
+    convert = read . show . nominalDiffTimeToSeconds
+
+
 data Q = Q {
     qid :: Int,
     qualifier_id :: Int,
@@ -96,6 +112,14 @@ data F24Coordinates = F24Coordinates {
     xPercentage :: Float,
     yPercentage :: Float
 }
+
+-- Parse date-times such as 2018-09-15T14:56:30.
+parseDatetime :: String -> Maybe LocalTime
+parseDatetime = parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%S"
+
+-- Parse timestamps such 2018-09-15T14:19:24.588.
+parseTimestamp :: String -> Maybe LocalTime
+parseTimestamp = parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%S%Q"
 
 loadGameFromFile :: String -> IO (Game F24Coordinates)
 loadGameFromFile filepath = do
@@ -122,8 +146,8 @@ makeEvent el =
             team_id = attrLookupStrict el read "team_id",
             outcome = attrLookup el read "outcome",
             coordinates = coordinates,
-            timestamp = attrLookupStrict el read "timestamp",
-            last_modified = attrLookupStrict el read "last_modified",
+            timestamp = attrLookupStrict el (fromJust . parseTimestamp) "timestamp",
+            last_modified = attrLookupStrict el (fromJust . parseDatetime) "last_modified",
             qs = map makeQ $ Xml.getChildrenWithQName "Q" el
             }
     where
@@ -138,12 +162,12 @@ makeGame el = Game { gid = attrLookupStrict el read "id",
                      away_team_name = attrLookupStrict el id "away_team_name",
                      competition_id = attrLookupStrict el read "competition_id",
                      competition_name = attrLookupStrict el id "competition_name",
-                     game_date = attrLookupStrict el read "game_date",
+                     game_date = attrLookupStrict el (fromJust . parseDatetime) "game_date",
                      home_team_id = attrLookupStrict el read "home_team_id",
                      home_team_name = attrLookupStrict el id "home_team_name",
                      matchday = attrLookupStrict el read "matchday",
-                     period_1_start = attrLookupStrict el read "period_1_start",
-                     period_2_start = attrLookupStrict el read "period_2_start",
+                     period_1_start = attrLookupStrict el (fromJust . parseDatetime) "period_1_start",
+                     period_2_start = attrLookupStrict el (fromJust . parseDatetime) "period_2_start",
                      season_id = attrLookupStrict el read "season_id",
                      season_name = attrLookupStrict el id "season_name",
                      events = map makeEvent $ Xml.getChildrenWithQName "Event" el
