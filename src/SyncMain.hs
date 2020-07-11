@@ -16,6 +16,7 @@ data Options = Options {
     f24File     :: String,
     outputFile  :: String,
     timeOnly    :: Bool,
+    showsync    :: Bool,
     cScale      :: Double,
     lScale      :: Double,
     pScale      :: Double,
@@ -32,6 +33,7 @@ options = Options
     <*> argument str (metavar "F24")
     <*> argument str (metavar "OUTPUT")
     <*> switch (long "time-only" <> short 't' <> help "Sync only by time")
+    <*> switch (long "show-sync" <> short 's' <> help "Print human-readable sync on screen")
     <*> option auto (long "scale-clock" <> short 'c' <> value 1 <> metavar "X" <> help "Clock difference resulting in unit penalty [s, default 1]")
     <*> option auto (long "scale-location" <> short 'l' <> value 5 <> metavar "X" <> help "Location difference resulting in unit penalty [m, default 5]")
     <*> option auto (long "scale-player" <> short 'p' <> value 1 <> metavar "X" <> help "Player-ball distance resulting in unit penalty [m, default 1]")
@@ -85,6 +87,10 @@ main = do
     let sync1 = NW.align events1 frames1 sim gapl gapr
     let sync2 = NW.align events2 frames2 sim gapl gapr
     CSV.alignment2Csv (NW.joinAlignments sync1 sync2) (outputFile opts)
+
+    -- Print sync on screen if requested
+    when (showsync opts) $ putStr (show sync1)
+    when (showsync opts) $ putStr (show sync2)
 
     -- Write event and frame CSVs if requested
     when (eventCSV opts /= "") $ CSV.events2Csv (events1 ++ events2) (eventCSV opts)
