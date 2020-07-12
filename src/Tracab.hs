@@ -47,6 +47,7 @@ data Position = Position {
 }
 
 data BallStatus = Alive | Dead
+    deriving Eq
 -- A single complete snapshot of tracking data
 data Frame positions = Frame {
     frameId :: Int,

@@ -70,20 +70,19 @@ main = do
     let frames1 = filter (\f -> (Tcb.frameId f <= p1end) && (Tcb.frameId f >= p1start)) tbData
     let frames2 = filter (\f -> (Tcb.frameId f <= p2end) && (Tcb.frameId f >= p2start)) tbData
 
-    -- The penalty for leaving frames unaligned needs to be small.
-    -- Conversely, leaving events unaligned should be costly.
-    -- Note that the score for a Match is negative on the log-density scale.
-    let gapl f = -10.0    -- Leaves a frame unaligned for p < exp(-10) = 4.5e-5
-    let gapr e = -1000.0
+    -- Define gap penalties. Leaving frames unaligned costs nothing, 
+    -- but all events will get aligned since even a terrible match is > 0.
+    let gapl f =  1
+    let gapr e = -1
 
-    -- Build the scoring function as requested by the user.
-    -- FIXME: Combine functions without mentioning arguments.
-    let to = timeOnly opts
-    let scoreClock = Scoring.clockScore (timestamp opts) f24Data (cScale opts)
-    let scoreLocation e f = if to then 0 else Scoring.locationScore (100 * lScale opts) e f
-    let scorePlayer e f = if to then 0 else Scoring.playerScore (F24.shirtNumbers f24Meta) (100 * pScale opts) e f
-    let scoreBall e f = if to then 0 else Scoring.ballStatusScore (bScale opts) e f
-    let sim e f = scoreClock e f + scoreLocation e f + scorePlayer e f + scoreBall e f
+    -- Build the scoring function.
+    let scoreClock = Scoring.misClock (timestamp opts) f24Data (cScale opts)
+    let scoreLocation = Scoring.misLocation (100 * lScale opts)
+    let scorePlayer = Scoring.misPlayer (F24.shirtNumbers f24Meta) (100 * pScale opts)
+    let scoreBall = Scoring.misBallStatus (bScale opts)
+    let scoreFull = Scoring.combine [scoreClock, scoreLocation, scorePlayer, scoreBall]
+    let score = if timeOnly opts then scoreClock else scoreFull
+    let sim e f = exp (-score e f)
 
     -- Align!
     let sync1 = NW.align events1 frames1 sim gapl gapr

@@ -29,7 +29,6 @@ executable sync-soccer
     , xml
     , bytestring
     , array
-    , statistics
     , optparse-applicative
     , time >= 1.9.3
   

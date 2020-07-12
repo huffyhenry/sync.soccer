@@ -3,55 +3,58 @@ module Scoring where
 import qualified Data.Map.Strict as Map
 import qualified Data.List
 import Data.Maybe (maybe, fromMaybe)
-import Statistics.Distribution (logDensity)
-import Statistics.Distribution.Normal as Gaussian
 import qualified Tracab as Tcb
 import qualified F24
 
-eventPlayerDistance :: F24.ShirtNumbers -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Maybe Double
-eventPlayerDistance shirtNumbers event frame = do
-        playerId <- F24.player_id event
-        (teamKind, shirtNumber) <- Map.lookup playerId shirtNumbers
-        let isPlayer p = Tcb.shirtNumber p == Just shirtNumber && Tcb.mTeam p == Just teamKind
-        let positions = Tcb.positions frame
-        playerPosition <- Data.List.find isPlayer $ Tcb.agents positions
-        let playerCoords = Tcb.coordinates playerPosition
-        let ballCoords = Tcb.coordinates $ Tcb.ball positions
-        return $ euclideanDistance playerCoords ballCoords
+-- Distance between the player performing the given event and the ball,
+-- assessed using the Tracab frame supplied.
+playerBallDistance :: F24.ShirtNumbers -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Maybe Double
+playerBallDistance shirtNumbers event frame = do
+    playerId <- F24.player_id event
+    (teamKind, shirtNumber) <- Map.lookup playerId shirtNumbers
+    let isPlayer p = Tcb.shirtNumber p == Just shirtNumber && Tcb.mTeam p == Just teamKind
+    let positions = Tcb.positions frame
+    playerPosition <- Data.List.find isPlayer $ Tcb.agents positions
+    let playerCoords = Tcb.coordinates playerPosition
+    let ballCoords = Tcb.coordinates $ Tcb.ball positions
+    return $ eucl playerCoords ballCoords
 
-euclideanDistance :: Tcb.Coordinates -> Tcb.Coordinates -> Double
-euclideanDistance object target =
-    sqrt $ fromIntegral (xSquareSide + ySquareSide)
-    where
+-- Euclidean distance between a pair of points.
+eucl :: Tcb.Coordinates -> Tcb.Coordinates -> Double
+eucl object target = sqrt $ fromIntegral (xSquareSide + ySquareSide) where    
     xSquareSide = squareSide (Tcb.x object) (Tcb.x target)
     ySquareSide = squareSide (Tcb.y object) (Tcb.y target)
     squareSide p b = (p - b) ^ 2
 
--- The type of the functions that measure agreement between an event and a frame.
--- The bigger the return value, the better the agreement. In most cases, the
--- return value is in (-oo, 0) and can be interpreted as log-likelihood.
--- The first argument controls how stringent the function is and should be positive.
-type ScoringFunction = Double -> F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+-- Functions that measure (in)compatibility between an event and a frame.
+-- Raw measurements are normalised using the first arguments (should be +ve.)
+type Mismatch = F24.Event Tcb.Coordinates -> Tcb.Frame Tcb.Positions -> Double
+type RawMismatch = Double -> Mismatch
 
-clockScore :: Bool -> F24.Game Tcb.Coordinates -> ScoringFunction
-clockScore useTimestamp game scale e f =
-    let seconds = F24.eventClock useTimestamp game e
-        dist = abs $ seconds - fromMaybe seconds (Tcb.clock f)
-    in logDensity Gaussian.standard (dist / scale)
+-- Mismatch between clocks.
+misClock :: Bool -> F24.Game Tcb.Coordinates -> RawMismatch
+misClock useTimestamp game scale e f = dist / scale where
+    seconds = F24.eventClock useTimestamp game e
+    dist = abs $ seconds - fromMaybe seconds (Tcb.clock f)
 
-locationScore :: ScoringFunction
-locationScore scale e f =
-    let eXY = fromMaybe fXY (F24.coordinates e)
-        fXY = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
-        dist = euclideanDistance eXY fXY
-    in logDensity Gaussian.standard (dist / scale)
+-- Mismatch between event location and ball position.
+misLocation :: RawMismatch
+misLocation scale e f = dist / scale where
+    eXY = fromMaybe fXY (F24.coordinates e)
+    fXY = Tcb.coordinates $ Tcb.ball $ Tcb.positions f
+    dist = eucl eXY fXY
 
-ballStatusScore :: ScoringFunction
-ballStatusScore scale _ f = case Tcb.mBallStatus $ Tcb.ball $ Tcb.positions f of
-                                 Nothing -> 0.0
-                                 Just Tcb.Alive -> scale
-                                 Just Tcb.Dead -> -scale
+-- Disagreement on ball status (all events imply that the ball is in play.)
+misBallStatus :: RawMismatch
+misBallStatus scale _ f = if status == Just Tcb.Dead then scale else 0 where 
+    status = Tcb.mBallStatus $ Tcb.ball $ Tcb.positions f 
 
-playerScore :: F24.ShirtNumbers -> ScoringFunction
-playerScore jerseys scale e f = logDensity Gaussian.standard (dist / scale) where
-    dist = fromMaybe 0.0 (eventPlayerDistance jerseys e f)
+-- Distance between the player and the ball (all events imply 0.)
+misPlayer :: F24.ShirtNumbers -> RawMismatch
+misPlayer jerseys scale e f = dist / scale where
+    dist = fromMaybe 0.0 (playerBallDistance jerseys e f)
+
+-- Combine an arbitrary number of Mismatch functions to a single one
+-- by taking the length of the vector of individual mismatch scores.
+combine :: [Mismatch] -> Mismatch
+combine funs e f = sqrt $ sum [fun e f ^ 2  | fun <- funs]
