@@ -10,13 +10,14 @@ import qualified NeedlemanWunsch as NW
 
 events2Csv :: [F24.Event Tcb.Coordinates] -> String -> IO ()
 events2Csv events filepath = do
-    let header = "event,x,y,event_type,team,minute,second"
-    let format = "%d,%d,%d,%s,%d,%d,%d"
+    let header = "event,x,y,event_type,team,half,minute,second"
+    let format = "%d,%d,%d,%s,%d,%d,%d,%d"
     let e2record e = printf format (F24.eid e)
                                    ((Tcb.x . fromJust . F24.coordinates) e)
                                    ((Tcb.y . fromJust . F24.coordinates) e)
                                    (F24.eventTypeName e)
                                    (F24.team_id e)
+                                   (F24.period_id e)
                                    (F24.min e)
                                    (F24.sec e)
     writeFile filepath (unlines (header : map e2record events))
