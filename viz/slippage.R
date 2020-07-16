@@ -3,9 +3,9 @@ library(dplyr)
 library(ggplot2)
 
 # Source files
-frames.file <- "../data/csv/frames.csv"
-events.file <- "../data/csv/events.csv"
-sync.file <- "../data/csv/sync.csv"
+frames.file <- "../tmp/frames.csv"
+events.file <- "../tmp/events.csv"
+sync.file <- "../tmp/sync.csv"
 
 # File to save the plot to
 out.file <- "../slippage.png"
@@ -28,7 +28,8 @@ ggplot(aes(x=event.clock/60, y=event.clock-frame.clock)) +
   theme_bw() +
   theme(
     panel.grid.major.x=element_blank(),
-    panel.grid.minor.x=element_blank()
+    panel.grid.minor.x=element_blank(),
+    text=element_text(family="Helvetica-Narrow")
   ) +
   labs(
     title="Clock difference between aligned events and frames (seconds)",

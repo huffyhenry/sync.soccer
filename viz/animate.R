@@ -7,15 +7,15 @@ library(ggsoccer)
 
 
 # Source files
-frames.file <- "../data/csv/frames.csv"
-events.file <- "../data/csv/events.csv"
-sync.file <- "../data/csv/sync.csv"
+frames.file <- "../tmp/frames.csv"
+events.file <- "../tmp/events.csv"
+sync.file <- "../tmp/sync.csv"
 
 # File to save animation to
 anim.file <- "../clip.gif"
 
 # The segment of data to animate (in seconds, based on Tracab's implied clock)
-start.clock <- 60
+start.clock <- 60*67 + 10
 end.clock <- start.clock + 30
 
 # Pitch dimensions in metres, from Tracab metadata.
@@ -23,32 +23,34 @@ pitch.length <- 105.0
 pitch.width <- 68.0
 
 # Presentation
-team1.colour <- "#034694"
+team1.colour <- "#e6b800"
 team2.colour <- "#6cabdd"
 tracab.colour <- "black"
 opta.colour <- "red"
+annotation <- "sync.soccer (full algo)"
+font <- "Helvetica-Narrow"
 
 
 # Load both data streams and merge them according to the sync file.
 # Each row is the position of a single player or of the ball.
 # Positions in frames aligned to an event are annotated with that event data.
-data <- read_csv(frames.file) %>%
+data <- read_csv(frames.file, col_types=cols()) %>%
   # Drop officials
   filter(team != 3) %>%
   # Add matched event IDs
-  left_join(read_csv(sync.file)) %>%
+  left_join(read_csv(sync.file, col_types=cols()), by="frame") %>%
   # Add event information
-  left_join(read_csv(events.file), by="event", suffix=c(".f", ".e")) %>%
+  left_join(read_csv(events.file, col_types=cols()), by="event", suffix=c(".f", ".e")) %>%
   # Create descriptions to print (running clock / event type and time)
   mutate(
     desc.f=sprintf(
-      "Implied Tracab clock - %02d:%02d.%03d",
+      "Implied frame clock - %02d:%02d.%03d",
       floor(clock) %/% 60, floor(clock) %% 60, floor(1000*(clock - floor(clock)))
     ),
     desc.e=ifelse(
       is.na(event),
       "",
-      sprintf("Opta event - %02d:%02d %s", minute, second, event_type)
+      sprintf("Event - %02d:%02d %s", minute, second, event_type)
     )
   ) %>%
   # Repeat the ball positions aligned to an event 25 times to simulate a pause
@@ -72,9 +74,10 @@ animation <- ggplot(ball, aes(x=x.f, y=y.f)) +
   geom_point(data=players, aes(color=as.factor(team.f)), size=3, alpha=0.75) +
   geom_point(aes(x=x.e, y=y.e), colour=opta.colour, shape=4, size=4) +
   scale_color_manual(values=c(team1.colour, team2.colour)) +
+  annotate("text", x=40*pitch.length, y=-47*pitch.width, label=annotation, size=2.5) +
   transition_time(animation.clock) +
   theme_pitch(aspect_ratio=pitch.width/pitch.length) +
-  theme(legend.position="none")
+  theme(legend.position="none", text=element_text(family=font))
 
 animate(animation, nframes=nrow(ball), duration=end.clock-start.clock)
 
