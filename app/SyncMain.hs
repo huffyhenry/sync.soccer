@@ -34,19 +34,26 @@ options = Options
     <*> argument str (metavar "F24")
     <*> argument str (metavar "OUTPUT")
     <*> switch (long "time-only" <> short 't' <> help "Sync only by time")
-    <*> switch (long "timestamp" <> short 'u' <> help "Use F24 event timestamp instead of min:sec")
-    <*> switch (long "show-sync" <> short 's' <> help "Print human-readable sync on screen")
-    <*> option auto (long "scale-clock" <> short 'c' <> value 1 <> metavar "X" <> help "Clock difference resulting in unit penalty [s, default 1]")
-    <*> option auto (long "scale-location" <> short 'l' <> value 5 <> metavar "X" <> help "Location difference resulting in unit penalty [m, default 5]")
-    <*> option auto (long "scale-player" <> short 'p' <> value 1 <> metavar "X" <> help "Player-ball distance resulting in unit penalty [m, default 1]")
-    <*> option auto (long "scale-ball" <> short 'b' <> value 5 <> metavar "X" <> help "Penalty for syncing to dead-ball frame [default 5]")
-    <*> strOption (long "event-csv" <> short 'e' <> value "" <> metavar "FILEPATH" <> help "Location to save F24 events CSV")
-    <*> strOption (long "frame-csv" <> short 'f' <> value "" <> metavar "FILEPATH" <> help "Location to save Tracab frames CSV")
+    <*> switch (long "timestamp" <> short 'u' 
+                <> help "Use F24 event timestamp instead of min:sec")
+    <*> switch (long "show-sync" <> short 's' 
+                <> help "Print human-readable sync on screen")
+    <*> option auto (long "scale-clock" <> short 'c' <> value 1 <> metavar "X" 
+                     <> help "Clock mismatch leading to unit penalty [s, def=1]")
+    <*> option auto (long "scale-location" <> short 'l' <> value 5 <> metavar "X" 
+                     <> help "Location mismatch leading to unit penalty [m, def=5]")
+    <*> option auto (long "scale-player" <> short 'p' <> value 1 <> metavar "X" 
+                     <> help "Player-ball gap leading to unit penalty\n [m, def=1]")
+    <*> option auto (long "scale-ball" <> short 'b' <> value 5 <> metavar "X" 
+                     <> help "Penalty for syncing to dead-ball frame [def=5]")
+    <*> strOption (long "event-csv" <> short 'e' <> value "" <> metavar "FILEPATH" 
+                   <> help "Location to save F24 events CSV")
+    <*> strOption (long "frame-csv" <> short 'f' <> value "" <> metavar "FILEPATH" 
+                   <> help "Location to save Tracab frames CSV")
 
 parseOptions :: IO Options
 parseOptions = let desc = "Synchronise Tracab and F24 data."
-                   hdr = "Copyright (c) 2018-2019 Allan Clark and Marek Kwiatkowski."
-               in execParser $ info (options <**> helper) (fullDesc <> progDesc desc <> header hdr)
+               in execParser $ info (options <**> helper) (fullDesc <> progDesc desc)
 
 main :: IO ()
 main = do
