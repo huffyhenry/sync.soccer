@@ -80,7 +80,7 @@ hasQid i q = qualifier_id q == i
 -- game periods as having lasted exactly 45 minutes.
 -- The first argument controls whether event timestamp should be used.
 eventClock :: Bool -> Game cs -> Event cs -> Double
-eventClock False _ ee = fromIntegral (60 * min ee + sec ee)
+eventClock False _ ee = fromIntegral (60 * min ee + sec ee) + 0.5
 eventClock True gg ee = nominalOffset + actualSincePeriodStart where
     half = period_id ee
     nominalOffset = fromIntegral (60 * 45 * (half - 1))
