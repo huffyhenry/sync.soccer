@@ -1,6 +1,11 @@
 data/
+out/
+tmp/
 clip.gif
+slippage.png
 test.sh
+batch.sh
 .stack-work/
 .Rproj.user/
 *.Rproj
+.Rhistory
