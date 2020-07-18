@@ -1,35 +1,33 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Csvs where
 
 import Data.IntMap (elems)
 import Data.Maybe (fromJust)
 import Text.Printf (printf)
 import qualified Tracab as Tcb
-import qualified F24 as F24
+import qualified F24
 import qualified NeedlemanWunsch as NW
 
 
-events2Csv :: [F24.Event (Tcb.Coordinates)] -> String -> IO ()
+events2Csv :: [F24.Event Tcb.Coordinates] -> String -> IO ()
 events2Csv events filepath = do
-    let header = "event,x,y,event_type,team,minute,second"
-    let format = "%d,%d,%d,%s,%d,%d,%d"
+    let header = "event,x,y,event_type,team,half,minute,second"
+    let format = "%d,%d,%d,%s,%d,%d,%d,%d"
     let e2record e = printf format (F24.eid e)
                                    ((Tcb.x . fromJust . F24.coordinates) e)
                                    ((Tcb.y . fromJust . F24.coordinates) e)
                                    (F24.eventTypeName e)
                                    (F24.team_id e)
+                                   (F24.period_id e)
                                    (F24.min e)
                                    (F24.sec e)
-    writeFile filepath (unlines (header:(map e2record events)))
+    writeFile filepath (unlines (header : map e2record events))
 
 
 showTeam :: Maybe Tcb.TeamKind -> String
-showTeam team =
-    case team of
-        Just Tcb.Home -> "1"
-        Just Tcb.Away -> "0"
-        Nothing -> "3"
+showTeam team = case team of
+    Just Tcb.Home -> "1"
+    Just Tcb.Away -> "0"
+    Nothing -> "3"
 
 frames2Csv :: Tcb.Frames Tcb.Positions -> String -> IO ()
 frames2Csv frames filepath = do
@@ -42,7 +40,7 @@ frames2Csv frames filepath = do
                                          (fromJust (Tcb.clock f))
                                          (Tcb.frameId f)
     let meltFrame f = (f, Tcb.ball $ Tcb.positions f):[(f, pos) | pos <- Tcb.agents $ Tcb.positions f]
-    let melted = foldr (++) [] (map meltFrame frames)
+    let melted = foldr ((++) . meltFrame) [] frames
     let records = map fp2record melted
     writeFile filepath (unlines (header:records))
 

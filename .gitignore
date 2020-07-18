@@ -1,8 +1,11 @@
-truncated-data/
 data/
+out/
+tmp/
+clip.gif
+slippage.png
+test.sh
+batch.sh
 .stack-work/
-.idea/
-*.csv
-R.Rproj
-.Rproj.user
+.Rproj.user/
+*.Rproj
 .Rhistory
