@@ -25,6 +25,7 @@ cabal-version:       >=1.10
 executable sync-soccer
   hs-source-dirs:      src, app
   main-is:             SyncMain.hs
+  ghc-options:         -O -fPIC
   other-modules:       NeedlemanWunsch,
                        Tracab,
                        F24,
