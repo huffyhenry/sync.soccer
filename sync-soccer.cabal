@@ -12,7 +12,7 @@ name:                sync-soccer
 version:             0.1.0.0
 synopsis:            Synchronise soccer event and tracking data
 homepage:            https://github.com/huffyhenry/sync.soccer
-license:             GPL-3
+license:             AGPL-3
 license-file:        LICENSE
 author:              Allan Clark and Marek Kwiatkowski
 maintainer:          m.kwiatkowski@protonmail.com
