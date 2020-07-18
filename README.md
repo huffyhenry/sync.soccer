@@ -206,5 +206,5 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 [header-clip]: doc/header-clip.gif
 [badge-experimental]: https://img.shields.io/badge/lifecycle-proof%20of%20concept-important
 [link-nwwiki]: https://en.wikipedia.org/wiki/Needleman%E2%80%93Wunsch_algorithm
-[link-blog]: https://kwiatkowski.io/something
+[link-blog]: https://kwiatkowski.io/sync.soccer
 [link-stack]: https://docs.haskellstack.org/en/stable/README/
