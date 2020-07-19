@@ -1,5 +1,5 @@
 ![](doc/header-clip.gif)
-# sync.soccer ![badge-experimental]
+# sync.soccer ![badge-experimental] ![badge-travis]
 
 sync.soccer synchronises (or _aligns_) soccer
 datasets, so that an event in one dataset is matched to the corresponding
@@ -202,6 +202,7 @@ You should have received a copy of the GNU Affero General Public License along w
 
 [header-clip]: doc/header-clip.gif
 [badge-experimental]: https://img.shields.io/badge/lifecycle-proof%20of%20concept-important
+[badge-travis]: https://api.travis-ci.org/huffyhenry/sync.soccer.svg?branch=master
 [link-nwwiki]: https://en.wikipedia.org/wiki/Needleman%E2%80%93Wunsch_algorithm
 [link-blog]: https://kwiatkowski.io/sync.soccer
 [link-stack]: https://docs.haskellstack.org/en/stable/README/
