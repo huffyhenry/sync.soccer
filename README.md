@@ -202,7 +202,8 @@ You should have received a copy of the GNU Affero General Public License along w
 
 [header-clip]: doc/header-clip.gif
 [badge-experimental]: https://img.shields.io/badge/lifecycle-proof%20of%20concept-important
-[badge-travis]: https://api.travis-ci.org/huffyhenry/sync.soccer.svg?branch=master
+[badge-travis]: https://api.travis-ci.com/huffyhenry/sync.soccer.svg?branch=master
 [link-nwwiki]: https://en.wikipedia.org/wiki/Needleman%E2%80%93Wunsch_algorithm
 [link-blog]: https://kwiatkowski.io/sync.soccer
 [link-stack]: https://docs.haskellstack.org/en/stable/README/
+
